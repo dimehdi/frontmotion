@@ -1,0 +1,18 @@
+{
+  "name": "frontmotion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Des animations web qui passent la critique d'un directeur artistique avant que tu les voies.",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "capture": "node scripts/capture.mjs",
+    "fluidite": "node scripts/fluidite.mjs",
+    "ralentissements": "node scripts/ralentissements.mjs",
+    "telephone": "node scripts/telephone.mjs",
+    "verifier": "node scripts/verifier-tout.mjs"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}

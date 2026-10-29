@@ -1,0 +1,769 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brûlerie Ardoise · Le parcours de votre commande</title>
+<!--
+  Ce que l'animation raconte : une commande passée au téléphone réveille l'atelier, les grains verts deviennent bruns
+  dans le tambour, puis sont refroidis, pesés, ensachés au numéro de la commande, mis en carton et livrés à la porte.
+  Le moment fort : le premier crack, puis la coulée des grains torréfiés dans le bac de refroidissement (vers 3,5 s).
+  À la fin : tout le parcours d'un seul regard, le colis sur le paillasson, la porte entrouverte, et l'atelier qui
+  continue de tourner (fumée de la cheminée, bras du bac) pour les commandes suivantes.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  .parcours {
+    --papier: #F4EDE1;
+    --encre: #2A1D16;
+    --encre-douce: #6E5D51;
+    --cuivre: #C2612F;
+    --ardoise: #3E4C55;
+    color: var(--encre);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #F4EDE1; }
+  body { font-family: "Instrument Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+
+  .parcours {
+    min-height: 100svh;
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: clamp(32px, 5vw, 80px);
+    align-items: center;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: clamp(40px, 6vw, 72px) clamp(16px, 4vw, 56px);
+  }
+  .texte { max-width: 470px; }
+  .surtitre {
+    margin: 0 0 14px;
+    font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+    color: var(--cuivre);
+  }
+  h2 {
+    margin: 0 0 18px;
+    font-family: "Fraunces", Georgia, serif; font-weight: 600;
+    font-size: clamp(30px, 3.4vw, 44px); line-height: 1.06; letter-spacing: -.015em;
+  }
+  .chapo { margin: 0 0 30px; font-size: 17px; line-height: 1.55; color: var(--encre-douce); }
+
+  .etapes { list-style: none; margin: 0; padding: 0; display: grid; gap: 16px; }
+  .etape {
+    position: relative; padding-left: 26px;
+    color: var(--encre-douce);
+    transition: color .45s ease;
+  }
+  .etape::before {
+    content: ""; position: absolute; left: 0; top: 6px;
+    width: 11px; height: 11px; border-radius: 50%;
+    border: 2px solid currentColor; background: transparent;
+    transition: background-color .45s ease, border-color .45s ease, transform .45s cubic-bezier(.3,1.6,.5,1);
+  }
+  .etape.faite { color: var(--encre); }
+  .etape.faite::before { background: var(--encre); border-color: var(--encre); }
+  .etape.active { color: var(--encre); }
+  .etape.active::before { background: var(--cuivre); border-color: var(--cuivre); transform: scale(1.25); }
+  .etape .quand { display: block; font-size: 12.5px; font-weight: 600; letter-spacing: .04em; color: var(--cuivre); }
+  .etape strong { display: block; font-size: 17px; font-weight: 600; margin: 1px 0 2px; }
+  .etape p { margin: 0; font-size: 15px; line-height: 1.45; }
+
+  .scene { position: relative; width: 100%; }
+  .scene svg {
+    display: block; width: 100%; height: auto; aspect-ratio: 1000 / 900;
+    transition: opacity .3s ease;
+  }
+  .cadre { position: relative; }
+  .cadre::after {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset 0 0 22px 18px #F4EDE1;
+  }
+  .scene svg text { font-family: "Instrument Sans", system-ui, sans-serif; }
+  .legende { display: none; }
+  .pied { display: flex; align-items: center; justify-content: flex-end; gap: 12px; padding: 0 5%; }
+  .revoir {
+    flex: none;
+    font: 600 14px/1 "Instrument Sans", system-ui, sans-serif; color: var(--encre);
+    background: #FBF7F0; border: 1.5px solid rgba(42,29,22,.18); border-radius: 22px;
+    min-height: 44px; padding: 0 18px; cursor: pointer;
+    opacity: 0; visibility: hidden; transition: opacity .35s ease, visibility .35s, border-color .2s ease;
+  }
+  .revoir.visible { opacity: 1; visibility: visible; }
+  .pied { position: relative; min-height: 44px; }
+  .revoir:not(.visible) { position: absolute; right: 5%; }
+  .revoir:hover { border-color: rgba(42,29,22,.45); }
+  .revoir:focus-visible { outline: 2px solid var(--cuivre); outline-offset: 3px; }
+
+  @media (max-width: 860px) {
+    .parcours { grid-template-columns: 1fr; min-height: 0; gap: 28px; }
+    .texte { max-width: 560px; }
+    .scene { order: -1; margin: 0 -8px; width: calc(100% + 16px); }
+    .chapo { margin-bottom: 24px; }
+    .pied { justify-content: space-between; padding: 0 16px; }
+    .revoir:not(.visible) { right: 16px; }
+    .revoir .long { display: none; }
+    .legende { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .legende {
+      display: block; margin: 0; min-height: 22px; flex: 1 1 auto; min-width: 0;
+      font-size: 15px; font-weight: 600; color: var(--encre);
+    }
+    .legende span { color: var(--cuivre); margin-right: 8px; }
+  }
+</style>
+</head>
+<body>
+<section class="parcours" id="parcours" aria-labelledby="titre-parcours">
+  <div class="texte">
+    <p class="surtitre">Brûlerie Ardoise</p>
+    <h2 id="titre-parcours">Votre café attend votre commande pour être torréfié.</h2>
+    <p class="chapo">Nos grains dorment verts dans leurs sacs de jute. Ils passent au tambour le lendemain de votre commande et partent de l'atelier le jour où on les ensache.</p>
+    <ol class="etapes">
+      <li class="etape" data-etape="0"><span class="quand">Mardi, 21 h 40</span><strong>Vous commandez</strong><p>La commande n° 2417 arrive à l'atelier dans la seconde.</p></li>
+      <li class="etape" data-etape="1"><span class="quand">Mercredi, 8 h</span><strong>On torréfie</strong><p>Quatorze minutes de tambour, jusqu'au premier crack et un peu au-delà.</p></li>
+      <li class="etape" data-etape="2"><span class="quand">Mercredi, 14 h</span><strong>On pèse et on ensache</strong><p>250 g pile, dans un sachet à valve marqué à votre numéro.</p></li>
+      <li class="etape" data-etape="3"><span class="quand">Vendredi</span><strong>C'est chez vous</strong><p>Deux jours de repos, juste ce qu'il faut pour l'ouvrir.</p></li>
+    </ol>
+  </div>
+
+  <div class="scene">
+    <div class="cadre">
+    <svg id="dessin" viewBox="0 0 1000 900" role="img" aria-label="Le parcours d'une commande : un téléphone envoie la commande, le torréfacteur chauffe les grains verts jusqu'au brun, les grains refroidissent, sont pesés et ensachés, mis en carton puis livrés en triporteur jusqu'à la porte du client.">
+      <defs>
+        <g id="grain">
+          <ellipse rx="5" ry="7" fill="currentColor"/>
+          <path d="M.4-5.6C-2.4-2 2.4 2-.4 5.6" fill="none" stroke="#000" stroke-opacity=".32" stroke-width="1.2" stroke-linecap="round"/>
+        </g>
+        <radialGradient id="halo"><stop offset="0" stop-color="#F7CF7A" stop-opacity=".9"/><stop offset="1" stop-color="#F7CF7A" stop-opacity="0"/></radialGradient>
+        <pattern id="motif-vert" width="30" height="22" patternUnits="userSpaceOnUse" style="color:#9BAE6E"><g id="tuile"><rect width="30" height="22" fill="#1E1410"/><rect width="30" height="22" fill="currentColor" opacity=".38"/><use href="#grain" transform="translate(6 6) rotate(25)"/><use href="#grain" transform="translate(18 5) rotate(105)"/><use href="#grain" transform="translate(26 14) rotate(55)"/><use href="#grain" transform="translate(11 16) rotate(150)"/><use href="#grain" transform="translate(0 15) rotate(80)"/><use href="#grain" transform="translate(30 15) rotate(80)"/><use href="#grain" transform="translate(21 22) rotate(10)"/><use href="#grain" transform="translate(21 0) rotate(10)"/></g></pattern>
+        <pattern id="motif-tambour" width="30" height="22" patternUnits="userSpaceOnUse" style="color:#9BAE6E"><use href="#tuile"/></pattern>
+        <pattern id="motif-bac" width="30" height="22" patternUnits="userSpaceOnUse" patternTransform="scale(1 .62)" style="color:#5A341E"><use href="#tuile"/></pattern>
+        <clipPath id="clip-tremie"><path d="M507 122H613L577 192H543Z"/></clipPath>
+        <clipPath id="clip-hublot"><circle cx="565" cy="310" r="52"/></clipPath>
+        <clipPath id="clip-bac"><ellipse cx="770" cy="502" rx="107" ry="29"/></clipPath>
+        <clipPath id="clip-coulee"><circle id="coulee-rayon" cx="720" cy="498" r="0"/></clipPath>
+        <mask id="masque-route-1" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="900">
+          <path id="trace-1" d="M244 196C300 140 420 150 472 290" fill="none" stroke="#fff" stroke-width="14"/>
+        </mask>
+        <mask id="masque-route-2" maskUnits="userSpaceOnUse" x="0" y="0" width="1000" height="900">
+          <path id="trace-2" d="M486 872H336" fill="none" stroke="#fff" stroke-width="14"/>
+        </mask>
+      </defs>
+
+      <g id="camera">
+        <!-- ombres au sol -->
+        <g fill="#2A1D16" opacity=".09">
+          <ellipse cx="565" cy="448" rx="150" ry="9"/>
+          <ellipse cx="385" cy="448" rx="62" ry="6"/>
+          <ellipse cx="770" cy="626" rx="92" ry="7"/>
+          
+          <ellipse cx="180" cy="356" rx="58" ry="7"/>
+        </g>
+
+        <!-- trajets hors de l'atelier, en pointillés -->
+        <path d="M244 196C300 140 420 150 472 290" fill="none" stroke="#C2612F" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="0 12" mask="url(#masque-route-1)"/>
+
+        <!-- maison du client -->
+        <g id="maison">
+          <rect x="24" y="785" width="310" height="10" rx="3" fill="#E4D6C1"/>
+          <rect x="48" y="566" width="250" height="219" fill="#E3C3A1"/>
+          <rect x="48" y="566" width="250" height="10" fill="#D4AE88"/>
+          <path d="M32 570 173 470 314 570Z" fill="#9B5A3C"/>
+          <path d="M32 570 173 470 314 570 304 570 173 481 42 570Z" fill="#874B30"/>
+          <rect x="236" y="490" width="22" height="44" fill="#874B30"/>
+          <!-- fenêtres -->
+          <rect x="74" y="594" width="66" height="54" rx="3" fill="#F3E6CC"/>
+          <path d="M107 594V648M74 621H140" stroke="#E3C3A1" stroke-width="5"/>
+          <rect x="190" y="594" width="66" height="54" rx="3" fill="#F3E6CC"/>
+          <path d="M223 594V648M190 621H256" stroke="#E3C3A1" stroke-width="5"/>
+          <rect x="74" y="682" width="78" height="62" rx="3" fill="#F3E6CC"/>
+          <rect id="fenetre-lumiere" x="74" y="682" width="78" height="62" rx="3" fill="#F2C063" opacity="0"/>
+          <path d="M113 682V744M74 713H152" stroke="#E3C3A1" stroke-width="5"/>
+          <rect x="68" y="744" width="90" height="7" rx="2" fill="#D4AE88"/>
+          <!-- porte -->
+          <rect x="188" y="688" width="64" height="97" fill="#F2C063"/>
+          <path id="lumiere-sol" d="M188 785H252L286 797H160Z" fill="#F2C063" opacity="0"/>
+          <g id="porte">
+            <path d="M188 785V718Q188 688 220 688Q252 688 252 718V785Z" fill="#3E4C55"/>
+            <rect x="197" y="716" width="46" height="26" rx="2" fill="#4A5963"/>
+            <rect x="197" y="749" width="46" height="29" rx="2" fill="#4A5963"/>
+            <circle cx="244" cy="748" r="2.8" fill="#C99A4B"/>
+          </g>
+          <rect x="262" y="700" width="20" height="13" rx="2" fill="#F7EFE2"/>
+          <text x="272" y="710" font-size="9" font-weight="600" text-anchor="middle" fill="#3E4C55">12</text>
+          <circle id="halo-lampe" cx="220" cy="674" r="34" fill="url(#halo)" opacity="0"/>
+          <rect x="215" y="666" width="10" height="4" rx="1" fill="#3E4C55"/>
+          <circle id="ampoule" cx="220" cy="674" r="4.5" fill="#D9CDB9"/>
+          <rect x="182" y="785" width="76" height="5" rx="2" fill="#7A5A3E"/>
+        </g>
+
+        <!-- route -->
+        <rect x="150" y="860" width="820" height="6" rx="3" fill="#E1D3BF"/>
+        <path d="M486 872H336" fill="none" stroke="#C2612F" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="0 12" mask="url(#masque-route-2)"/>
+
+        <!-- sacs de grains verts -->
+        <g id="sacs">
+          <path d="M338 446C332 410 336 372 348 352L352 344H404L410 352C422 372 424 410 418 446Z" fill="#C8A878"/>
+          <path d="M352 344 356 336H400L404 344Z" fill="#B39064"/>
+          <text x="378" y="404" font-size="12" font-weight="600" text-anchor="middle" fill="#8C6B43" letter-spacing="1.5">GUJI</text>
+          <text x="378" y="418" font-size="7" text-anchor="middle" fill="#8C6B43" letter-spacing="1">ÉTHIOPIE</text>
+          <path d="M394 446C390 420 393 396 402 384L405 378H440L444 384C452 398 454 422 450 446Z" fill="#B99766"/>
+          <path d="M405 378 408 372H437L440 378Z" fill="#A5835A"/>
+        </g>
+
+        <!-- torréfacteur -->
+        <g id="torrefacteur">
+          <!-- cheminée et fumée -->
+          <g id="fumee" fill="#9E938B"></g>
+          <rect x="654" y="82" width="26" height="146" fill="#2F3A41"/>
+          <rect x="648" y="74" width="38" height="11" rx="3" fill="#3E4C55"/>
+          <!-- trémie vitrée -->
+          <rect x="548" y="188" width="24" height="38" fill="#2F3A41"/>
+          <rect id="vanne" x="566" y="200" width="18" height="7" rx="2" fill="#C99A4B"/>
+          <path d="M505 120H615L578 194H542Z" fill="#E9E1D3"/>
+          <g clip-path="url(#clip-tremie)"><g id="grains-tremie" style="color:#9BAE6E"></g></g>
+          <path d="M505 120H615L578 194H542Z" fill="none" stroke="#3E4C55" stroke-width="5" stroke-linejoin="round"/>
+          <path d="M520 130 548 186" stroke="#fff" stroke-opacity=".45" stroke-width="4" stroke-linecap="round"/>
+          <rect x="497" y="110" width="126" height="13" rx="4" fill="#3E4C55"/>
+          <!-- brûleur -->
+          <rect x="458" y="398" width="14" height="40" fill="#2F3A41"/>
+          <rect x="658" y="398" width="14" height="40" fill="#2F3A41"/>
+          <rect x="448" y="434" width="234" height="12" rx="4" fill="#2F3A41"/>
+          <g id="flammes"></g>
+          <rect x="528" y="428" width="74" height="6" rx="3" fill="#2F3A41"/>
+          <!-- corps -->
+          <rect x="440" y="222" width="250" height="180" rx="22" fill="#3E4C55"/>
+          <rect x="452" y="229" width="226" height="6" rx="3" fill="#fff" opacity=".07"/>
+          <!-- façade du tambour -->
+          <circle cx="565" cy="310" r="80" fill="#56656E"/>
+          <circle cx="565" cy="310" r="80" fill="none" stroke="#2F3A41" stroke-width="4"/>
+          <g fill="#2F3A41" id="rivets"></g>
+          <circle cx="565" cy="310" r="55" fill="#231A15"/>
+          <g clip-path="url(#clip-hublot)">
+            <g id="grains-tambour" style="color:#9BAE6E">
+              <g id="lit-tambour"></g>
+              <g id="tourbillon"></g>
+              <g id="chute-tambour"></g>
+            </g>
+            <circle id="lueur" cx="565" cy="340" r="60" fill="url(#halo)" opacity="0"/>
+            <g id="eclats" fill="#F1DDAE"></g>
+          </g>
+          <path d="M527 284A46 46 0 0 1 560 264" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="565" cy="310" r="55" fill="none" stroke="#2F3A41" stroke-width="5"/>
+          <!-- trappe et goulotte -->
+          <path d="M640 318 742 392V414L646 344Z" fill="#2F3A41"/>
+          <path d="M640 318 742 392 742 398 642 326Z" fill="#56656E"/>
+          <g id="trappe"><rect x="632" y="296" width="14" height="40" rx="3" fill="#2F3A41"/></g>
+          <!-- tableau de bord -->
+          <circle cx="484" cy="262" r="17" fill="#F3EBDD"/>
+          <circle cx="484" cy="262" r="17" fill="none" stroke="#2F3A41" stroke-width="3"/>
+          <path d="M471 268A14 14 0 0 1 497 268" fill="none" stroke="#C2612F" stroke-width="2" stroke-opacity=".6"/>
+          <g id="aiguille"><path d="M484 262V250" stroke="#2A1D16" stroke-width="2.4" stroke-linecap="round"/></g>
+          <circle cx="484" cy="262" r="2.6" fill="#2A1D16"/>
+          <circle id="halo-voyant" cx="484" cy="300" r="12" fill="#E8743A" opacity="0"/>
+          <circle id="voyant" cx="484" cy="300" r="5" fill="#2A2420"/>
+          <rect x="462" y="328" width="46" height="15" rx="3" fill="#C99A4B"/>
+          <text x="485" y="338.6" font-size="7.2" font-weight="600" text-anchor="middle" fill="#3E2C1C" letter-spacing="1.2">ARDOISE</text>
+        </g>
+
+        <!-- bac de refroidissement -->
+        <g id="bac">
+          <rect x="702" y="522" width="10" height="100" fill="#2F3A41"/>
+          <rect x="828" y="522" width="10" height="100" fill="#2F3A41"/>
+          <rect x="856" y="528" width="16" height="78" rx="3" fill="#2F3A41"/>
+          <rect x="852" y="600" width="24" height="9" rx="2" fill="#3E4C55"/>
+          <path d="M650 500V522A120 36 0 0 0 890 522V500Z" fill="#3E4C55"/>
+          <ellipse cx="770" cy="500" rx="120" ry="36" fill="#56656E"/>
+          <ellipse cx="770" cy="502" rx="108" ry="30" fill="#231A15"/>
+          <g clip-path="url(#clip-bac)"><g clip-path="url(#clip-coulee)"><g id="lit-bac" style="color:#5A341E"></g></g></g>
+          <g transform="translate(770 502) scale(1 .28)">
+            <g id="bras">
+              <rect x="-102" y="-5" width="204" height="10" rx="5" fill="#8A989F"/>
+              <rect x="-5" y="-102" width="10" height="204" rx="5" fill="#8A989F"/>
+            </g>
+          </g>
+          <rect x="763" y="470" width="14" height="32" rx="3" fill="#56656E"/>
+          <ellipse cx="770" cy="470" rx="9" ry="4" fill="#8A989F"/>
+          <g id="vapeur" fill="#B3A698"></g>
+        </g>
+
+        <!-- coulée des grains (au-dessus du bac) -->
+        <g id="coulee" style="color:#5A341E"></g>
+        <!-- filet de grains vers le sachet -->
+        <g id="filet" style="color:#5A341E"></g>
+
+        <!-- balance -->
+        <g id="balance">
+          <rect x="826" y="786" width="8" height="74" fill="#2F3A41"/>
+          <rect x="914" y="786" width="8" height="74" fill="#2F3A41"/>
+          <rect x="816" y="780" width="116" height="9" rx="2" fill="#56656E"/>
+          <rect x="828" y="750" width="72" height="30" rx="6" fill="#3E4C55"/>
+          <rect x="846" y="756" width="38" height="17" rx="3" fill="#1E1714"/>
+          <text id="poids" x="880" y="768.5" font-size="10" font-weight="600" text-anchor="end" fill="#F0B160" font-family="ui-monospace, Menlo, Consolas, monospace">0 g</text>
+          <rect id="plateau" x="818" y="743" width="92" height="7" rx="2" fill="#8A989F"/>
+        </g>
+
+        <!-- triporteur, carton et sachet -->
+        <g id="triporteur">
+          <g id="caisse">
+            <g transform="translate(470 860)">
+              <rect x="14" y="-40" width="192" height="10" rx="4" fill="#2F3A41"/>
+              <rect x="80" y="-64" width="124" height="28" rx="2" fill="#2F3A41"/>
+              <path d="M6-34 8-82Q9-98 26-98H58Q72-98 74-84L78-34Z" fill="#3E4C55"/>
+              <path d="M17-84Q18-91 26-91H50L56-62H16Z" fill="#CFDDE2"/>
+              <rect x="6" y="-50" width="72" height="5" fill="#C2612F"/>
+              <circle cx="11" cy="-40" r="4" fill="#F0D79A"/>
+            </g>
+            <g id="carton">
+              <polygon points="-50,-66 50,-66 64,-80 -36,-80" fill="#6B4A2E"/>
+              <g id="sachet">
+                <g id="sachet-corps">
+                  <path d="M-30 0Q-32 0-32-3V-84H32V-3Q32 0 30 0Z" fill="#C9A06B"/>
+                  <rect x="-32" y="-84" width="8" height="81" fill="#B48955"/>
+                  <circle cx="16" cy="-72" r="3.4" fill="#A8814F"/>
+                  <rect x="-19" y="-58" width="40" height="36" rx="2" fill="#F7F0E4"/>
+                  <text x="1" y="-49" font-size="5.6" font-weight="600" text-anchor="middle" fill="#2A1D16" letter-spacing="1">ARDOISE</text>
+                  <text x="1" y="-38.5" font-size="10" font-weight="600" text-anchor="middle" fill="#2A1D16" font-family="Fraunces, Georgia, serif">Guji</text>
+                  <text id="tampon-encre" x="1" y="-27" font-size="6.4" font-weight="600" text-anchor="middle" fill="#C2612F" opacity="0">n° 2417</text>
+                </g>
+                <g id="rabat">
+                  <rect x="-32" y="-96" width="64" height="12" fill="#D6AF7A"/>
+                  <ellipse id="ouverture" cx="0" cy="-95" rx="29" ry="3.2" fill="#6F4D2E"/>
+                </g>
+              </g>
+              <rect x="-50" y="-66" width="100" height="66" fill="#C48F5C"/>
+              <polygon points="50,0 64,-14 64,-80 50,-66" fill="#A8743F"/>
+              <text x="0" y="-27" font-size="9" font-weight="600" text-anchor="middle" fill="#8E5E33" letter-spacing="1.6">ARDOISE</text>
+              <polygon id="rabat-g" points="-50,-66 -36,-80 -64,-119 -78,-105" fill="#D9A56D"/>
+              <polygon id="rabat-d" points="50,-66 64,-80 92,-119 78,-105" fill="#D9A56D"/>
+              <path id="scotch" d="M0-46V-66L14-80" fill="none" stroke="#EADBB8" stroke-width="13" stroke-opacity=".95"/>
+            </g>
+            <g transform="translate(470 860)">
+              <rect x="78" y="-58" width="128" height="26" rx="3" fill="#3E4C55"/>
+              <text x="142" y="-41" font-size="10" font-weight="600" text-anchor="middle" fill="#E9E1D3" letter-spacing="2">ARDOISE</text>
+            </g>
+          </g>
+          <g id="roue-av" transform="translate(502 845)"><circle r="15" fill="#2A1D16"/><circle r="6.5" fill="#8A989F"/><path d="M-11 0H11M0-11V11" stroke="#56656E" stroke-width="2"/></g>
+          <g id="roue-ar" transform="translate(635 845)"><circle r="15" fill="#2A1D16"/><circle r="6.5" fill="#8A989F"/><path d="M-11 0H11M0-11V11" stroke="#56656E" stroke-width="2"/></g>
+        </g>
+
+        <!-- tampon -->
+        <g id="tampon">
+          <ellipse cx="0" cy="-46" rx="11" ry="9" fill="#9A6740"/>
+          <rect x="-4" y="-40" width="8" height="22" fill="#8A5A36"/>
+          <rect x="-13" y="-20" width="26" height="12" rx="2" fill="#9A6740"/>
+          <rect x="-16" y="-9" width="32" height="9" rx="2" fill="#2A1D16"/>
+        </g>
+
+        <!-- téléphone -->
+        <g id="telephone" transform="translate(178 236) rotate(-5)">
+          <rect x="-60" y="-112" width="120" height="224" rx="18" fill="#2A1D16"/>
+          <rect x="-52" y="-100" width="104" height="200" rx="11" fill="#FBF6EE"/>
+          <rect x="-12" y="-95" width="24" height="5" rx="2.5" fill="#2A1D16"/>
+          <text x="-40" y="-75" font-size="7.6" font-weight="600" fill="#2A1D16" letter-spacing="1.4">ARDOISE</text>
+          <rect x="-40" y="-66" width="80" height="62" rx="6" fill="#EFE2CF"/>
+          <path d="M-12-14V-50H12V-14Z" fill="#C9A06B"/>
+          <rect x="-12" y="-56" width="24" height="6" fill="#D6AF7A"/>
+          <rect x="-7" y="-40" width="14" height="12" rx="1" fill="#F7F0E4"/>
+          <text x="-40" y="14" font-size="9.5" font-weight="600" fill="#2A1D16">Guji, Éthiopie</text>
+          <text x="-40" y="26" font-size="6.6" fill="#6E5D51">Fruits rouges, bergamote</text>
+          <text x="-40" y="40" font-size="7" fill="#6E5D51">250 g · grains</text>
+          <text x="40" y="40" font-size="8" font-weight="600" text-anchor="end" fill="#2A1D16">14,50 €</text>
+          <g id="bouton">
+            <rect id="bouton-fond" x="-40" y="52" width="80" height="24" rx="12" fill="#C2612F"/>
+            <text id="bouton-texte" x="0" y="67" font-size="8.4" font-weight="600" text-anchor="middle" fill="#fff">Commander</text>
+            <text id="bouton-ok" x="0" y="67" font-size="7.6" font-weight="600" text-anchor="middle" fill="#fff" opacity="0">Commande n° 2417</text>
+          </g>
+          <circle id="onde" cx="0" cy="64" r="12" fill="none" stroke="#C2612F" stroke-width="2" opacity="0"/>
+          <circle id="doigt" cx="2" cy="66" r="11" fill="#2A1D16" opacity="0"/>
+        </g>
+        <circle id="signal" cx="244" cy="196" r="6" fill="#C2612F" opacity="0"/>
+      </g>
+    </svg>
+    </div>
+    <div class="pied">
+      <p class="legende" id="legende" aria-hidden="true"></p>
+      <button class="revoir" type="button" id="revoir">Revoir<span class="long"> le parcours</span></button>
+    </div>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const $ = (s) => document.querySelector(s);
+  const reduit = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // hasard reproductible : la même scène à chaque chargement
+  let graine = 7;
+  const hasard = () => ((graine = (graine * 16807) % 2147483647) / 2147483647);
+  const entre = (a, b) => a + (b - a) * hasard();
+
+  function grain(parent, x = 0, y = 0, r = 0, s = 1, sy = 1) {
+    const u = document.createElementNS(NS, "use");
+    u.setAttribute("href", "#grain");
+    u.setAttribute("transform", `translate(${x} ${y}) rotate(${r}) scale(${s} ${s * sy})`);
+    parent.appendChild(u);
+    return u;
+  }
+  function cercle(parent, attrs) {
+    const c = document.createElementNS(NS, "circle");
+    for (const k in attrs) c.setAttribute(k, attrs[k]);
+    parent.appendChild(c);
+    return c;
+  }
+
+  // ---------- construction des grains ----------
+  // trémie : un tas de grains verts
+  const tremie = $("#grains-tremie");
+  const fond = (parent, x, y, w, h, motif) => {
+    const r = document.createElementNS(NS, "rect");
+    for (const [k, v] of Object.entries({ x, y, width: w, height: h, fill: `url(#${motif})` })) r.setAttribute(k, v);
+    parent.appendChild(r);
+  };
+  fond(tremie, 500, 132, 120, 70, "motif-vert");
+  for (let x = 508; x < 616; x += 9) grain(tremie, x + entre(-2, 2), 131 + entre(-2, 2), entre(0, 180));
+  // rivets de la façade
+  for (let i = 0; i < 10; i++) { const a = (i / 10) * Math.PI * 2; cercle($("#rivets"), { cx: 565 + Math.cos(a) * 68, cy: 310 + Math.sin(a) * 68, r: 2.6 }); }
+  // tambour : le lit de grains au fond, et ceux que les pales soulèvent
+  const lit = $("#lit-tambour");
+  fond(lit, 505, 334, 120, 40, "motif-tambour");
+  for (let x = 512; x < 620; x += 8) grain(lit, x + entre(-2, 2), 333 + entre(-2, 2) + Math.pow((x - 565) / 52, 2) * 6, entre(0, 180));
+  const tourbillon = $("#tourbillon");
+  const volants = [];
+  for (let i = 0; i < 14; i++) volants.push({ el: grain(tourbillon), r: entre(34, 48), p: i / 14 + entre(-.02, .02), rot: entre(0, 360) });
+  const chuteTambour = [];
+  for (let i = 0; i < 6; i++) chuteTambour.push(grain($("#chute-tambour"), 0, 0, 0));
+  const eclats = [];
+  for (let i = 0; i < 20; i++) { const e = document.createElementNS(NS, "ellipse"); e.setAttribute("rx", 4.4); e.setAttribute("ry", 2.4); e.setAttribute("opacity", 0); $("#eclats").appendChild(e); eclats.push(e); }
+  // bac : le lit de grains torréfiés, à plat
+  const litBac = $("#lit-bac");
+  fond(litBac, 655, 468, 232, 70, "motif-bac");
+  // coulée vers le bac, filet vers le sachet
+  const coulee = [];
+  for (let i = 0; i < 22; i++) coulee.push(grain($("#coulee")));
+  const filet = [];
+  for (let i = 0; i < 10; i++) filet.push(grain($("#filet")));
+  // flammes
+  const flammes = [];
+  for (let i = 0; i < 5; i++) {
+    const g = document.createElementNS(NS, "g");
+    g.innerHTML = '<path d="M0 0C-7-6-6-15 0-24C6-15 7-6 0 0Z" fill="#D9692E"/><path d="M0 0C-4-4-3-9 0-14C3-9 4-4 0 0Z" fill="#F4B84C"/>';
+    $("#flammes").appendChild(g);
+    flammes.push({ el: g, x: 541 + i * 12 });
+  }
+  // fumée et vapeur
+  const fumee = []; for (let i = 0; i < 6; i++) fumee.push(cercle($("#fumee"), { r: 0, opacity: 0 }));
+  const vapeur = []; for (let i = 0; i < 5; i++) vapeur.push(cercle($("#vapeur"), { r: 0, opacity: 0 }));
+
+  // ---------- état piloté par la timeline ----------
+  const cam = { x: 500, y: 455, s: 1 };
+  const etat = { flamme: 0, tourne: 0, vitesse: 0, fumee: 0, vapeur: 0 };
+  let tempsTambour = 0, dernier = 0, visible = true, derniereVue = "";
+  const camera = $("#camera");
+
+  function rendre(t) {
+    const dt = Math.min(.05, t - dernier); dernier = t;
+    const vue = `translate(500 450) scale(${cam.s.toFixed(4)}) translate(${(-cam.x).toFixed(2)} ${(-cam.y).toFixed(2)})`;
+    if (vue !== derniereVue) { camera.setAttribute("transform", vue); derniereVue = vue; }
+    if (!visible) return;
+    // grains soulevés par les pales du tambour, puis retombant au fond
+    if (etat.tourne > 0.001) {
+      tempsTambour += dt * etat.vitesse;
+      for (const v of volants) {
+        const p = (v.p + tempsTambour) % 1;
+        let x, y;
+        if (p < .58) {
+          const a = (70 + (p / .58) * 140) * Math.PI / 180;
+          x = 565 + Math.cos(a) * v.r; y = 310 + Math.sin(a) * v.r;
+        } else {
+          const q = (p - .58) / .42;
+          const a0 = 210 * Math.PI / 180, a1 = 62 * Math.PI / 180;
+          const x0 = 565 + Math.cos(a0) * v.r, y0 = 310 + Math.sin(a0) * v.r;
+          const x1 = 565 + Math.cos(a1) * v.r * .8, y1 = 310 + Math.sin(a1) * v.r * .8;
+          x = x0 + (x1 - x0) * q; y = y0 + (y1 - y0) * q * q - 14 * q * (1 - q);
+        }
+        v.el.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(v.rot + p * 540).toFixed(0)})`);
+      }
+    }
+    tourbillon.setAttribute("opacity", etat.tourne.toFixed(3));
+    // flammes : une respiration irrégulière, à la hauteur réglée par la timeline
+    flammes.forEach((f, i) => {
+      const h = etat.flamme * (.82 + .12 * Math.sin(t * 9 + i * 1.7) + .06 * Math.sin(t * 23 + i));
+      f.el.setAttribute("transform", `translate(${f.x} 430) scale(${(.6 + .4 * Math.min(1, etat.flamme * 3)).toFixed(3)} ${h.toFixed(3)})`);
+    });
+    // fumée de la cheminée
+    fumee.forEach((c, i) => {
+      const p = (t / 3.2 + i / fumee.length) % 1;
+      c.setAttribute("cx", (667 + Math.sin(p * 4 + i) * 6 + p * 26).toFixed(1));
+      c.setAttribute("cy", (68 - p * 96).toFixed(1));
+      c.setAttribute("r", (5 + p * 15).toFixed(1));
+      c.setAttribute("opacity", Math.min(.6, etat.fumee * .42 * Math.sin(Math.PI * Math.min(1, p * 1.25))).toFixed(3));
+    });
+    // vapeur au-dessus du bac
+    vapeur.forEach((c, i) => {
+      const p = (t / 2.4 + i / vapeur.length) % 1;
+      c.setAttribute("cx", (712 + i * 28 + Math.sin(p * 5 + i * 2) * 5).toFixed(1));
+      c.setAttribute("cy", (494 - p * 60).toFixed(1));
+      c.setAttribute("r", (3 + p * 9).toFixed(1));
+      c.setAttribute("opacity", (etat.vapeur * .42 * Math.sin(Math.PI * p)).toFixed(3));
+    });
+  }
+  gsap.ticker.add((t) => rendre(t));
+
+  // ---------- positions de départ ----------
+  const carton = $("#carton"), sachet = $("#sachet"), triporteur = $("#triporteur");
+  const caisse = $("#caisse");
+  const rabatG = $("#rabat-g"), rabatD = $("#rabat-d");
+  const rabats = { g: 125, d: 125 };
+  function poserRabats() {
+    const pts = (ax, ay, bx, by, cx, sens, th) => {
+      const r = th * Math.PI / 180;
+      const vx = Math.cos(r) * 50 * sens, vy = -Math.sin(r) * 40;
+      return `${ax},${ay} ${bx},${by} ${bx + vx},${by + vy} ${ax + vx},${ay + vy}`;
+    };
+    rabatG.setAttribute("points", pts(-50, -66, -36, -80, 0, 1, rabats.g));
+    rabatD.setAttribute("points", pts(50, -66, 64, -80, 0, -1, rabats.d));
+    rabatG.setAttribute("fill", rabats.g > 90 ? "#D9A56D" : "#C99459");
+    rabatD.setAttribute("fill", rabats.d > 90 ? "#D9A56D" : "#C99459");
+  }
+  const scotch = $("#scotch");
+  const longueurScotch = scotch.getTotalLength();
+  const trace1 = $("#trace-1"), trace2 = $("#trace-2");
+  const L1 = trace1.getTotalLength(), L2 = trace2.getTotalLength();
+  const poids = $("#poids");
+  const masse = { g: 0 };
+
+  function initial() {
+    gsap.set(carton, { x: 755, y: 852, rotation: 0, scaleX: 1, scaleY: 1, transformOrigin: "50% 100%" });
+    gsap.set(sachet, { x: 109, y: -108, rotation: 0, scaleX: 1, scaleY: 1, transformOrigin: "50% 100%" });
+    gsap.set("#sachet-corps", { scaleX: .9, transformOrigin: "50% 100%" });
+    gsap.set("#rabat", { scaleY: 1, transformOrigin: "50% 100%" });
+    gsap.set("#ouverture", { opacity: 1 });
+    gsap.set("#tampon-encre", { opacity: 0 });
+    gsap.set(triporteur, { x: 0 });
+    gsap.set(caisse, { rotation: 0, svgOrigin: "635 860" });
+    gsap.set(["#roue-av", "#roue-ar"], { rotation: 0, transformOrigin: "50% 50%" });
+    gsap.set("#tampon", { x: 864, y: 420, opacity: 0 });
+    gsap.set(trace1, { strokeDasharray: L1 + 30, strokeDashoffset: L1 + 30 });
+    gsap.set(trace2, { strokeDasharray: L2 + 30, strokeDashoffset: L2 + 30 });
+    gsap.set(scotch, { strokeDasharray: longueurScotch, strokeDashoffset: longueurScotch });
+    gsap.set("#grains-tremie", { y: 0 });
+    gsap.set("#lit-tambour", { y: 48 });
+    gsap.set(["#grains-tambour", "#motif-tambour"], { color: "#9BAE6E" });
+    gsap.set("#bras", { rotation: 0, svgOrigin: "0 0" });
+    gsap.set("#coulee-rayon", { attr: { r: 0 } });
+    gsap.set([...coulee, ...filet, ...chuteTambour], { opacity: 0 });
+    gsap.set("#vanne", { x: 0 });
+    gsap.set("#aiguille", { rotation: -110, svgOrigin: "484 262" });
+    gsap.set(["#voyant"], { attr: { fill: "#2A2420" } });
+    gsap.set(["#lueur", "#halo-voyant", "#halo-lampe", "#fenetre-lumiere", "#lumiere-sol", "#doigt", "#onde", "#signal", "#bouton-ok"], { opacity: 0 });
+    gsap.set("#bouton-texte", { opacity: 1 });
+    gsap.set("#bouton-fond", { attr: { fill: "#C2612F" } });
+    gsap.set("#bouton", { scale: 1, transformOrigin: "50% 50%" });
+    gsap.set("#ampoule", { attr: { fill: "#D9CDB9" } });
+    gsap.set("#porte", { scaleX: 1, svgOrigin: "196 785" });
+    gsap.set("#trappe", { y: 0 });
+    gsap.set("#torrefacteur", { x: 0 });
+    Object.assign(etat, { flamme: 0, tourne: 0, vitesse: 0, fumee: 0, vapeur: 0 });
+    rabats.g = 125; rabats.d = 125; poserRabats();
+    masse.g = 0; poids.textContent = "0 g";
+    tempsTambour = 0;
+    if (reduit) Object.assign(cam, { x: 478, y: 470, s: 1.02 });
+    else Object.assign(cam, { x: 190, y: 238, s: 2.3 });
+    marquerEtape(-1);
+  }
+
+  // ---------- étapes du texte ----------
+  const etapes = [...document.querySelectorAll(".etape")];
+  const legende = $("#legende");
+  function marquerEtape(n) {
+    const li = etapes[Math.min(n, 3)];
+    legende.innerHTML = n < 0 ? "" : `<span>${li.querySelector(".quand").textContent}</span>${li.querySelector("strong").textContent}`;
+    etapes.forEach((li, i) => {
+      li.classList.toggle("faite", i < n || n === 4);
+      li.classList.toggle("active", i === n);
+    });
+  }
+
+  // ---------- la timeline ----------
+  const tl = gsap.timeline({ paused: true, defaults: { ease: "power2.inOut" } });
+  const camVers = (x, y, s, d, at, ease = "power2.inOut") => { if (!reduit) tl.to(cam, { x, y, s, duration: d, ease }, at); };
+
+  // 1. la commande
+  tl.call(() => marquerEtape(0), null, 0);
+  tl.fromTo("#doigt", { opacity: 0, scale: 1.5, transformOrigin: "50% 50%" }, { opacity: .22, scale: 1, duration: .28, ease: "power2.out", immediateRender: false }, .15);
+  tl.to("#bouton", { scale: .93, duration: .1, ease: "power2.in" }, .38);
+  tl.to("#bouton", { scale: 1, duration: .35, ease: "back.out(3)" }, .48);
+  tl.to("#doigt", { opacity: 0, scale: 1.25, duration: .3, ease: "power1.out" }, .5);
+  tl.fromTo("#onde", { opacity: .9, scale: 1, transformOrigin: "50% 50%" }, { opacity: 0, scale: 2.6, duration: .6, ease: "power2.out", immediateRender: false }, .46);
+  tl.to("#bouton-fond", { attr: { fill: "#2A1D16" }, duration: .25, ease: "none" }, .48);
+  tl.to("#bouton-texte", { opacity: 0, duration: .15, ease: "none" }, .48);
+  tl.to("#bouton-ok", { opacity: 1, duration: .2, ease: "none" }, .58);
+
+  // 2. le signal file vers l'atelier
+  camVers(565, 290, 1.85, 1.3, .8);
+  tl.to("#signal", { opacity: 1, duration: .12, ease: "none" }, .82);
+  tl.to(trace1, { strokeDashoffset: 0, duration: 1.0, ease: "power1.inOut" }, .82);
+  tl.to({ k: 0 }, {
+    k: 1, duration: 1.0, ease: "power1.inOut",
+    onUpdate() { const p = trace1.getPointAtLength(this.targets()[0].k * L1); $("#signal").setAttribute("cx", p.x); $("#signal").setAttribute("cy", p.y); }
+  }, .82);
+  tl.to("#signal", { opacity: 0, scale: .4, transformOrigin: "50% 50%", duration: .15, ease: "power1.in" }, 1.72);
+  tl.set("#voyant", { attr: { fill: "#F08A4B" } }, 1.82);
+  tl.fromTo("#halo-voyant", { opacity: .8, scale: .6, transformOrigin: "50% 50%" }, { opacity: .3, scale: 1, duration: .5, ease: "power2.out", immediateRender: false }, 1.82);
+  tl.call(() => marquerEtape(1), null, 1.85);
+
+  // 3. torréfaction
+  tl.to(etat, { flamme: 1, duration: .45, ease: "power2.out" }, 1.95);
+  tl.to(etat, { tourne: 1, vitesse: .55, duration: .5, ease: "power1.out" }, 2.0);
+  tl.to("#vanne", { x: 14, duration: .2, ease: "power2.out" }, 2.0);
+  tl.to("#grains-tremie", { y: 46, duration: .7, ease: "power1.in" }, 2.05);
+  chuteTambour.forEach((g, i) => {
+    const x = 552 + i * 5;
+    tl.fromTo(g, { opacity: 1, x, y: 250, rotation: i * 40, transformOrigin: "50% 50%" },
+      { y: 352, rotation: i * 40 + 160, duration: .32, ease: "power2.in", immediateRender: false }, 2.08 + i * .07);
+    tl.set(g, { opacity: 0 }, 2.4 + i * .07);
+  });
+  tl.to("#lit-tambour", { y: 0, duration: .75, ease: "power2.out" }, 2.2);
+  tl.to(etat, { fumee: .9, duration: 1, ease: "power1.inOut" }, 2.3);
+  tl.to(["#grains-tambour", "#motif-tambour"], { keyframes: [{ color: "#C9B15A", duration: .55 }, { color: "#B47A3F", duration: .55 }, { color: "#7A4826", duration: .45 }, { color: "#5A341E", duration: .35 }], ease: "none" }, 2.3);
+  tl.to("#aiguille", { rotation: 40, duration: 1.9, ease: "power1.out" }, 2.1);
+  // premier crack
+  const crack = (at, fort) => {
+    eclats.forEach((e, i) => {
+      if (i % 2 !== (fort ? 0 : 1)) return;
+      const x = entre(522, 608), y = entre(328, 350);
+      tl.fromTo(e, { attr: { cx: x, cy: y }, opacity: 1 }, { attr: { cx: x + entre(-16, 16), cy: y - entre(30, 62) }, opacity: 0, duration: .55, ease: "power3.out", immediateRender: false }, at + i * .012);
+    });
+    tl.fromTo("#lueur", { opacity: fort ? .9 : .6 }, { opacity: 0, duration: .5, ease: "power2.out", immediateRender: false }, at);
+    tl.to("#lit-tambour", { keyframes: [{ y: fort ? -7 : -4, duration: .07, ease: "power2.out" }, { y: 0, duration: .16, ease: "power2.in" }] }, at);
+    tl.to("#torrefacteur", { keyframes: [{ x: 2.2, y: -1.5, duration: .04 }, { x: -1.6, y: 0, duration: .05 }, { x: .8, duration: .05 }, { x: 0, duration: .06 }], ease: "none" }, at);
+  };
+  crack(3.3, true); crack(3.62, false);
+  tl.to(etat, { keyframes: [{ fumee: 1.6, duration: .12, ease: "power2.out" }, { fumee: .9, duration: .9, ease: "power1.inOut" }] }, 3.3);
+  tl.to("#aiguille", { rotation: 58, duration: .2, ease: "power3.out" }, 3.3);
+
+  // 4. la coulée dans le bac (moment fort)
+  tl.to("#trappe", { y: -36, duration: .22, ease: "power2.out" }, 4.05);
+  coulee.forEach((g, i) => {
+    const at = 4.15 + i * .032;
+    const lx = entre(690, 770), ly = entre(486, 512);
+    const tg = gsap.timeline();
+    tg.set(g, { opacity: 1, x: 638, y: 320, rotation: entre(0, 180), transformOrigin: "50% 50%" })
+      .to(g, { x: 740, y: 400, rotation: "+=120", duration: .22, ease: "power1.in" })
+      .to(g, { x: lx, duration: .26, ease: "power1.out" }, ">")
+      .to(g, { y: ly, rotation: "+=140", duration: .26, ease: "power2.in" }, "<")
+      .to(g, { opacity: 0, duration: .06, ease: "none" }, ">-.02");
+    tl.add(tg, at);
+  });
+  tl.to("#lit-tambour", { y: 52, duration: .75, ease: "power1.in" }, 4.15);
+  tl.to(etat, { tourne: 0, duration: .5, ease: "power1.in" }, 4.2);
+  tl.to("#coulee-rayon", { attr: { r: 170 }, duration: 1.0, ease: "power1.out" }, 4.55);
+  tl.call(() => marquerEtape(2), null, 4.6);
+  camVers(800, 560, 1.75, 1.15, 4.35);
+  tl.to("#bras", { rotation: 360 * 1.4, duration: 2.6, ease: "power1.in" }, 4.5);
+  tl.to(etat, { vapeur: 1, duration: .5, ease: "power1.out" }, 4.75);
+  tl.to(etat, { flamme: .18, fumee: .45, duration: .8, ease: "power1.inOut" }, 4.6);
+  tl.to("#trappe", { y: 0, duration: .3, ease: "power2.inOut" }, 5.0);
+  tl.to(etat, { vapeur: .25, duration: 1, ease: "power1.inOut" }, 6.0);
+
+  // 5. pesée et ensachage
+  filet.forEach((g, i) => {
+    tl.fromTo(g, { opacity: 1, x: 864 + entre(-4, 4), y: 604, rotation: entre(0, 180), transformOrigin: "50% 50%" },
+      { y: 670, rotation: "+=200", duration: .24, ease: "power2.in", immediateRender: false, repeat: 2, repeatDelay: .02 }, 5.55 + i * .08);
+    tl.set(g, { opacity: 0 }, 5.55 + i * .08 + .78);
+  });
+  tl.to("#sachet-corps", { scaleX: 1, duration: .9, ease: "power1.out" }, 5.6);
+  tl.to(masse, { g: 250, duration: 1.15, ease: "power1.out", onUpdate: () => (poids.textContent = Math.round(masse.g) + " g") }, 5.62);
+  tl.to(["#plateau", sachet], { y: "+=2", duration: .9, ease: "power1.out" }, 5.62);
+  // le tampon descend, marque le numéro, repart
+  tl.set("#tampon", { x: 865, y: 250 }, 6.56);
+  tl.to("#tampon", { opacity: 1, duration: .1, ease: "none" }, 6.56);
+  tl.to("#tampon", { y: 712, duration: .36, ease: "power3.in" }, 6.56);
+  tl.to("#sachet-corps", { scaleY: .95, duration: .06, ease: "power1.out" }, 6.92);
+  tl.set("#tampon-encre", { opacity: 1 }, 6.95);
+  tl.to("#sachet-corps", { scaleY: 1, duration: .25, ease: "back.out(3)" }, 6.98);
+  tl.to("#tampon", { y: 250, duration: .42, ease: "power2.in" }, 7.0);
+  tl.to("#tampon", { opacity: 0, duration: .1, ease: "none" }, 7.32);
+  // on ferme le sachet
+  tl.to("#rabat", { scaleY: -1, duration: .32, ease: "power2.inOut" }, 7.25);
+  tl.set("#ouverture", { opacity: 0 }, 7.38);
+  tl.set("#rabat rect", { attr: { fill: "#B98E57" } }, 7.4);
+
+  // 6. le sachet couché dans le carton, que l'on ferme
+  camVers(700, 762, 1.8, 1.0, 7.5);
+  tl.to(sachet, { x: 0, duration: .55, ease: "power1.inOut" }, 7.65);
+  tl.to(sachet, { keyframes: [{ y: -170, duration: .26, ease: "power2.out" }, { y: 2, duration: .3, ease: "power2.in" }] }, 7.65);
+  tl.to(sachet, { rotation: -90, transformOrigin: "50% 60%", duration: .5, ease: "power1.inOut" }, 7.68);
+  tl.to(masse, { g: 0, duration: .25, ease: "none", onUpdate: () => (poids.textContent = Math.round(masse.g) + " g") }, 7.68);
+  tl.to("#plateau", { y: "-=2", duration: .2, ease: "power1.out" }, 7.68);
+  tl.to(carton, { keyframes: [{ scaleY: .94, scaleX: 1.03, duration: .08 }, { scaleY: 1, scaleX: 1, duration: .25, ease: "back.out(3)" }] }, 8.2);
+  tl.to(rabats, { g: 0, duration: .32, ease: "power2.in", onUpdate: poserRabats }, 8.35);
+  tl.to(rabats, { d: 0, duration: .32, ease: "power2.in", onUpdate: poserRabats }, 8.5);
+  tl.to(scotch, { strokeDashoffset: 0, duration: .3, ease: "power1.inOut" }, 8.82);
+
+  // 7. dans le triporteur
+  tl.call(() => marquerEtape(3), null, 9.1);
+  tl.to(carton, { x: 610, duration: .6, ease: "power1.inOut" }, 9.15);
+  tl.to(carton, { keyframes: [{ y: 740, duration: .3, ease: "power2.out" }, { y: 826, duration: .3, ease: "power2.in" }] }, 9.15);
+  tl.to(carton, { keyframes: [{ scaleY: .93, scaleX: 1.04, duration: .07 }, { scaleY: 1, scaleX: 1, duration: .25, ease: "back.out(3)" }] }, 9.75);
+  // le trajet
+  const dx = -140;
+  tl.to(triporteur, { x: dx, duration: 1.2, ease: "power2.inOut" }, 9.85);
+  tl.to(["#roue-av", "#roue-ar"], { rotation: (dx / 15) * 180 / Math.PI, duration: 1.2, ease: "power2.inOut" }, 9.85);
+  tl.to(trace2, { strokeDashoffset: 0, duration: 1.2, ease: "power2.inOut" }, 9.85);
+  tl.to(caisse, { keyframes: [{ rotation: 1.8, duration: .28, ease: "power2.out" }, { rotation: 0, duration: .45, ease: "power1.inOut" }, { rotation: -2.6, duration: .22, ease: "power2.out" }, { rotation: .7, duration: .22, ease: "power1.inOut" }, { rotation: 0, duration: .25, ease: "power1.inOut" }] }, 9.85);
+  camVers(330, 730, 1.8, 1.3, 9.8);
+  // le carton posé devant la porte
+  tl.to(carton, { x: 292 - dx, duration: .6, ease: "power1.inOut" }, 11.2);
+  tl.to(carton, { keyframes: [{ y: 690, duration: .3, ease: "power2.out" }, { y: 793, duration: .3, ease: "power2.in" }] }, 11.2);
+  tl.to(carton, { scaleX: .7, scaleY: .7, duration: .6, ease: "power1.inOut" }, 11.2);
+  tl.to(carton, { keyframes: [{ scaleY: .65, scaleX: .73, duration: .07 }, { scaleY: .7, scaleX: .7, duration: .25, ease: "back.out(3)" }] }, 11.8);
+  // quelqu'un ouvre
+  tl.set("#ampoule", { attr: { fill: "#FFE3A3" } }, 11.95);
+  tl.to("#halo-lampe", { opacity: 1, duration: .3, ease: "power2.out" }, 11.95);
+  tl.to("#fenetre-lumiere", { opacity: 1, duration: .4, ease: "power1.out" }, 11.95);
+  tl.to("#porte", { scaleX: .5, duration: .7, ease: "power2.inOut" }, 12.1);
+  tl.to("#lumiere-sol", { opacity: .55, duration: .6, ease: "power1.out" }, 12.25);
+  // tout le parcours d'un regard
+  camVers(478, 470, 1.02, 1.6, 12.3, "power2.inOut");
+  tl.call(() => { marquerEtape(4); $("#revoir").classList.add("visible"); }, null, 13.3);
+
+  initial();
+  // le gsap.set du sachet dépend de celui du carton ; la timeline doit enregistrer ces états comme départ
+  tl.invalidate();
+
+  // lancement quand la scène est bien visible ; la vie de fond s'arrête hors de l'écran
+  const scene = $(".scene");
+  let lance = false;
+  new IntersectionObserver((entrees) => {
+    for (const e of entrees) {
+      visible = e.isIntersecting;
+      if (e.isIntersecting && e.intersectionRatio >= .45 && !lance) { lance = true; tl.play(0); }
+      // hors de l'écran, l'histoire attend la personne au lieu de se dérouler sans elle
+      else if (lance && tl.progress() < 1) e.intersectionRatio >= .2 ? tl.resume() : tl.pause();
+    }
+  }, { threshold: [0, .2, .45] }).observe(scene);
+
+  // le bac et l'atelier continuent de tourner après la livraison
+  tl.eventCallback("onComplete", () => {
+    gsap.to("#bras", { rotation: "+=360", duration: 9, ease: "none", repeat: -1 });
+  });
+
+  $("#revoir").addEventListener("click", () => {
+    const svg = $("#dessin");
+    $("#revoir").classList.remove("visible");
+    gsap.killTweensOf("#bras");
+    gsap.to(svg, { opacity: 0, duration: .3, ease: "power1.in", onComplete: () => {
+      tl.pause(0); initial();
+      gsap.to(svg, { opacity: 1, duration: .35, ease: "power1.out" });
+      tl.play(0);
+    }});
+  });
+})();
+</script>
+</body>
+</html>

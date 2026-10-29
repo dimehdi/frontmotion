@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Atelier Varenne · Architecture</title>
+<!--
+  Ce que l'animation raconte : chaque chose de la page passe de l'esquisse au bâti. Elle est d'abord tracée au trait,
+  comme un plan, puis la matière monte depuis le sol, comme un chantier.
+  Le moment fort : le titre d'accueil, tracé en contour puis rempli d'encre par le bas, ligne après ligne (1,3 s).
+  À la fin : une page posée, et des bâtiments habités. Leurs fenêtres s'allument et s'éteignent de temps en temps, le
+  soir tombe sur les projets quand on les dépasse, et le survol d'un projet y fait tomber le soir et allume toutes ses fenêtres.
+-->
+<script>document.documentElement.classList.add("js");</script>
+<style>
+  :root { --fond: #f4f1ec; --encre: #1d1c1a; --doux: #6d6860; --accent: #b4532a; --carte: #ffffff; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--fond); color: var(--encre); font: 17px/1.6 system-ui, sans-serif; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 24px 6vw; }
+  header nav a { margin-left: 28px; color: var(--encre); text-decoration: none; }
+  .logo { font-weight: 700; letter-spacing: 0.04em; }
+  .hero { padding: 12vh 6vw 10vh; max-width: 1100px; }
+  .hero h1 { margin: 0 0 24px; font-size: clamp(2.6rem, 7vw, 5.6rem); line-height: 1.02; letter-spacing: -0.03em; }
+  .hero p { max-width: 38ch; color: var(--doux); font-size: 1.2rem; }
+  .btn { display: inline-block; margin-top: 24px; padding: 14px 26px; border-radius: 999px; background: var(--encre); color: var(--fond); text-decoration: none; }
+  section { padding: 10vh 6vw; }
+  h2 { font-size: clamp(1.8rem, 4vw, 3rem); margin: 0 0 40px; letter-spacing: -0.02em; }
+  .projets { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 28px; }
+  .projet { background: var(--carte); border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgb(0 0 0 / 0.06); transition: box-shadow 0.4s; }
+  .projet svg { display: block; width: 100%; height: 220px; background: #e7e1d7; }
+  .projet div { padding: 20px 22px 24px; }
+  .projet h3 { margin: 0 0 4px; }
+  .projet p { margin: 0; color: var(--doux); font-size: 0.95rem; }
+  .services { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 40px; }
+  .services h3 { margin: 0 0 8px; color: var(--accent); }
+  .services p { margin: 0; color: var(--doux); }
+  .chiffres { display: flex; flex-wrap: wrap; gap: 6vw; }
+  .chiffres strong { display: block; font-size: 3rem; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+  .chiffres span { color: var(--doux); }
+  footer { padding: 10vh 6vw; background: var(--encre); color: var(--fond); }
+  footer h2 { color: var(--fond); }
+  footer a { color: var(--fond); }
+
+  /* --- Mouvement --- */
+
+  /* Liens du menu : un trait se tire sous le mot, puis repart vers la droite */
+  header nav a { position: relative; }
+  header nav a::after { content: ""; position: absolute; left: 0; right: 0; bottom: -2px; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: right; transition: transform 0.35s cubic-bezier(0.6, 0, 0.2, 1); }
+  header nav a:hover::after, header nav a:focus-visible::after { transform: scaleX(1); transform-origin: left; }
+
+  /* Bouton : la terre cuite monte depuis le bas, comme la matière des bâtiments */
+  /* clip-path plutôt qu'overflow: hidden, qui changerait la ligne de base du bouton et décalerait la page */
+  .btn { position: relative; isolation: isolate; clip-path: inset(0 round 999px); }
+  .btn::before { content: ""; position: absolute; inset: 0; z-index: -1; background: var(--accent); transform: translateY(101%); transition: transform 0.4s cubic-bezier(0.6, 0, 0.2, 1); }
+  .btn:hover::before, .btn:focus-visible::before { transform: translateY(0); }
+
+  /* Projets : l'ombre s'approfondit au survol, sans zoom ; ce sont les fenêtres qui répondent */
+  .projet:hover { box-shadow: 0 14px 36px rgb(0 0 0 / 0.1); }
+  .trait { fill: none; stroke: var(--encre); stroke-width: 1.25; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+
+  /* Titres tracés : contour d'abord, puis l'encre monte par le bas */
+  /* la marge intérieure laisse la place aux jambages ; les marges négatives l'annulent (sans s'écraser entre lignes) */
+  .ligne-trace { padding: 0.14em 0; margin: -0.28em 0 0; color: transparent; -webkit-text-stroke: 1px var(--trace, var(--encre));
+    background-image: linear-gradient(to top, var(--trace, var(--encre)) 50%, transparent 50%); background-size: 100% 200%; background-position: 0% 0%;
+    -webkit-background-clip: text; background-clip: text; }
+  .ligne-trace:first-child { margin-top: -0.14em; }
+  .ligne-trace:last-child { margin-bottom: -0.14em; }
+  footer .ligne-trace { --trace: var(--fond); }
+
+  /* Savoir-faire : une chaîne de cotes relie les trois étapes */
+  .services > div { position: relative; }
+  .cote { position: absolute; top: -24px; left: 0; right: 0; height: 13px; pointer-events: none; }
+  .cote i { position: absolute; display: block; }
+  .cote .l { left: 0; right: 0; top: 6px; height: 1px; background: var(--encre); opacity: 0.55; transform-origin: left; }
+  .services > div.suite .cote .l { right: -40px; }
+  .cote .t { left: -1px; top: 0; width: 1px; height: 13px; background: var(--encre); transform: rotate(45deg); }
+  .cote .t2 { left: auto; right: -1px; }
+  .services > div.suite .cote .t2 { display: none; }
+
+  /* Compteurs : des roues de chiffres */
+  .roue { display: inline-block; height: 1.6em; overflow: hidden; vertical-align: top;
+    -webkit-mask-image: linear-gradient(transparent, #000 20%, #000 80%, transparent); mask-image: linear-gradient(transparent, #000 20%, #000 80%, transparent); }
+  .roue > span { display: block; }
+  .roue > span > span { display: block; height: 1.6em; }
+  .chiffres strong span { color: inherit; }
+
+  /* États de départ, seulement si le script tourne */
+  .js .hero h1, .js .hero p, .js .btn, .js header .logo, .js header nav, .js h2, .js .projet, .js .services h3, .js .services p, .js .cote, .js .chiffres > div, .js footer p { visibility: hidden; }
+</style>
+</head>
+<body>
+<header>
+  <span class="logo fade">ATELIER VARENNE</span>
+  <nav class="fade"><a href="#projets">Projets</a><a href="#services">Savoir-faire</a><a href="#contact">Contact</a></nav>
+</header>
+
+<section class="hero">
+  <h1 class="fade">Des lieux qui durent, dessinés pour ceux qui les habitent.</h1>
+  <p class="fade">Atelier d'architecture à taille humaine. Logements, équipements publics et réhabilitations, de l'esquisse au chantier.</p>
+  <a class="btn fade" href="#projets">Voir les projets</a>
+</section>
+
+<section id="projets">
+  <h2 class="fade">Projets récents</h2>
+  <div class="projets">
+    <article class="projet card">
+      <svg viewBox="0 0 400 220"><rect class="v" x="80" y="70" width="240" height="150" fill="#cfc4b4"/><rect class="v" x="80" y="50" width="240" height="20" fill="#b9ad9b"/><g fill="#8f8577"><rect class="f" x="105" y="95" width="40" height="50"/><rect class="f" x="180" y="95" width="40" height="50"/><rect class="f" x="255" y="95" width="40" height="50"/><rect class="f" x="180" y="165" width="40" height="55"/></g></svg>
+      <div><h3>Maison des Saules</h3><p>Logements collectifs, 24 appartements</p></div>
+    </article>
+    <article class="projet card">
+      <svg viewBox="0 0 400 220"><polygon class="v" points="70,220 70,110 200,40 330,110 330,220" fill="#d6cbbb"/><rect class="f" x="170" y="140" width="60" height="80" fill="#8f8577"/><rect class="f" x="100" y="130" width="40" height="40" fill="#a89c8b"/><rect class="f" x="260" y="130" width="40" height="40" fill="#a89c8b"/></svg>
+      <div><h3>Médiathèque du Port</h3><p>Équipement public, 1 800 m²</p></div>
+    </article>
+    <article class="projet card">
+      <svg viewBox="0 0 400 220"><rect class="v" x="60" y="90" width="120" height="130" fill="#c9bda9"/><rect class="v" x="180" y="40" width="160" height="180" fill="#d9cfc0"/><g fill="#8f8577"><rect class="f" x="80" y="115" width="80" height="16"/><rect class="f" x="80" y="150" width="80" height="16"/><rect class="f" x="200" y="65" width="120" height="14"/><rect class="f" x="200" y="100" width="120" height="14"/><rect class="f" x="200" y="135" width="120" height="14"/></g></svg>
+      <div><h3>Halle Montreuil</h3><p>Réhabilitation d'une halle industrielle</p></div>
+    </article>
+  </div>
+</section>
+
+<section id="services">
+  <h2 class="fade">Savoir-faire</h2>
+  <div class="services">
+    <div class="fade"><h3>Conception</h3><p>Esquisse, plans et permis, en dialogue constant avec vous.</p></div>
+    <div class="fade"><h3>Réhabilitation</h3><p>Transformer l'existant plutôt que démolir, en gardant son caractère.</p></div>
+    <div class="fade"><h3>Suivi de chantier</h3><p>Une présence sur place jusqu'à la remise des clés.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="chiffres">
+    <div class="fade"><strong>27</strong><span>années d'exercice</span></div>
+    <div class="fade"><strong>140</strong><span>projets livrés</span></div>
+    <div class="fade"><strong>12</strong><span>architectes et ingénieurs</span></div>
+  </div>
+</section>
+
+<footer id="contact">
+  <h2 class="fade">Parlons de votre projet.</h2>
+  <p class="fade">contact@atelier-varenne.fr · 01 23 45 67 89</p>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/ScrollTrigger.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/DrawSVGPlugin.min.js"></script>
+<script>
+(() => {
+  const racine = document.documentElement;
+  if (!window.gsap || !window.ScrollTrigger || !window.SplitText || !window.DrawSVGPlugin) { racine.classList.remove("js"); return; }
+  gsap.registerPlugin(ScrollTrigger, SplitText, DrawSVGPlugin);
+  const reduit = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const A = reduit ? 0.25 : 1; // amplitude des déplacements
+  const NS = "http://www.w3.org/2000/svg";
+  const montrer = (el) => gsap.set(el, { visibility: "visible" });
+
+  // Un titre tracé : contour tiré de gauche à droite, puis l'encre monte par le bas, ligne après ligne.
+  function tracer(titre, { vitesse = 1 } = {}) {
+    const split = SplitText.create(titre, { type: "lines", linesClass: "ligne-trace" });
+    montrer(titre);
+    const tl = gsap.timeline({ onComplete: () => split.revert() });
+    split.lines.forEach((ligne, i) => {
+      const t = i * 0.13 * vitesse;
+      tl.fromTo(ligne, { clipPath: "inset(-0.3em 100% -0.3em 0%)" }, { clipPath: "inset(-0.3em 0% -0.3em 0%)", duration: 0.6 * vitesse, ease: "power2.inOut", immediateRender: true }, t)
+        .to(ligne, { backgroundPosition: "0% 100%", duration: 0.75 * vitesse, ease: "power3.inOut" }, t + 0.3 * vitesse);
+    });
+    tl.to(split.lines, { webkitTextStrokeColor: "rgba(0,0,0,0)", duration: 0.3 }, ">-0.15");
+    return tl;
+  }
+
+  // --- Accueil ---
+  document.fonts.ready.then(() => {
+    const tl = gsap.timeline({ delay: 0.1 });
+    tl.add(() => { montrer(".logo"); montrer("header nav"); })
+      .fromTo(".logo", { clipPath: "inset(0 100% 0 0)" }, { clipPath: "inset(0 0% 0 0)", duration: 0.7, ease: "power2.inOut" }, 0)
+      .fromTo("header nav a", { autoAlpha: 0, y: -8 * A }, { autoAlpha: 1, y: 0, duration: 0.6, stagger: 0.06, ease: "power2.out" }, 0.15)
+      .add(tracer(document.querySelector(".hero h1")), 0.05)
+      .add(() => montrer(".hero p"), 0.55)
+      .fromTo(".hero p", { autoAlpha: 0, y: 14 * A }, { autoAlpha: 1, y: 0, duration: 0.8, ease: "power2.out", immediateRender: false }, 0.55)
+      .add(() => montrer(".btn"), 0.8)
+      .fromTo(".btn", { clipPath: "inset(100% 0% 0% 0% round 28px)" }, { clipPath: "inset(0% 0% 0% 0% round 28px)", duration: 0.7, ease: "power3.inOut", immediateRender: false, clearProps: "clipPath" }, 0.8);
+  });
+
+  // --- Titres de section ---
+  document.querySelectorAll("section h2, footer h2").forEach((h2) => {
+    ScrollTrigger.create({ trigger: h2, start: "top 85%", once: true, onEnter: () => tracer(h2, { vitesse: 0.8 }) });
+  });
+
+  // --- Projets : tracé, puis la matière monte du sol ; fenêtres habitées ---
+  const fenetres = []; // { el, h (survol), s (soir), i (vie), seuil }
+  const cartes = gsap.utils.toArray(".projet");
+  cartes.forEach((carte, n) => {
+    const svg = carte.querySelector("svg");
+    const defs = document.createElementNS(NS, "defs");
+    defs.innerHTML = `<clipPath id="sol-${n}"><rect x="0" y="220" width="400" height="220"/></clipPath>
+      <linearGradient id="soir-${n}" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="220"><stop offset="0" stop-color="#c7a27e"/><stop offset="1" stop-color="#ecc9a0"/></linearGradient>
+      <linearGradient id="lum-${n}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7dc9c"/><stop offset="1" stop-color="#eeb35e"/></linearGradient>`;
+    const ciel = document.createElementNS(NS, "rect");
+    Object.entries({ x: -300, y: -300, width: 1000, height: 520, fill: `url(#soir-${n})`, opacity: 0 }).forEach(([k, v]) => ciel.setAttribute(k, v));
+    const bati = document.createElementNS(NS, "g");
+    bati.setAttribute("clip-path", `url(#sol-${n})`);
+    while (svg.firstChild) bati.appendChild(svg.firstChild);
+    // le tracé : la ligne de sol d'abord, puis chaque volume monte du sol par ses deux murs, qui se rejoignent au faîte
+    const traits = document.createElementNS(NS, "g");
+    const chemin = (d) => { const c = document.createElementNS(NS, "path"); c.setAttribute("d", d); c.setAttribute("class", "trait"); traits.appendChild(c); return c; };
+    const sol = chemin("M-300 219.5 H700"); // déborde du dessin : au téléphone, l'illustration est plus étroite que son cadre
+    const volumes = [...bati.querySelectorAll(".v")].map((v) => {
+      let pts;
+      if (v.tagName === "rect") {
+        const [x, y, w, h] = ["x", "y", "width", "height"].map((k) => +v.getAttribute(k));
+        pts = [[x, y + h], [x, y], [x + w, y], [x + w, y + h]];
+      } else pts = v.getAttribute("points").trim().split(/\s+/).map((p) => p.split(",").map(Number));
+      const bas = Math.max(...pts.map((p) => p[1])), haut = Math.min(...pts.map((p) => p[1]));
+      // les deux murs partent des deux points au sol et se rejoignent au milieu du toit
+      const n = pts.length - 1, gauche = pts.slice(0, Math.ceil(n / 2) + 1), droite = pts.slice(Math.floor(n / 2)).reverse();
+      if (n % 2) { const a = pts[(n - 1) / 2], b = pts[(n + 1) / 2], m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; gauche.splice(-1, 1, m); droite.splice(-1, 1, m); }
+      const d = (l) => "M" + l.map((p) => p.join(" ")).join(" L");
+      return { bas, haut, murs: [chemin(d(gauche)), chemin(d(droite))] };
+    }).sort((a, b) => b.bas - a.bas || b.haut - a.haut);
+    // au soir, les façades s'assombrissent un peu, sous la même lumière que le ciel
+    const volumesClip = document.createElementNS(NS, "clipPath");
+    volumesClip.id = `vol-${n}`;
+    bati.querySelectorAll(".v").forEach((v) => { const c = v.cloneNode(); c.removeAttribute("class"); volumesClip.appendChild(c); });
+    defs.appendChild(volumesClip);
+    const ombre = document.createElementNS(NS, "rect");
+    Object.entries({ width: 400, height: 220, fill: "#3b2a1e", opacity: 0, "clip-path": `url(#vol-${n})` }).forEach(([k, v]) => ombre.setAttribute(k, v));
+    bati.appendChild(ombre);
+    carte._ombre = ombre;
+    const lumieres = document.createElementNS(NS, "g");
+    bati.querySelectorAll(".f").forEach((f, k) => {
+      const l = f.cloneNode();
+      l.removeAttribute("class");
+      l.setAttribute("fill", `url(#lum-${n})`);
+      l.setAttribute("opacity", 0);
+      lumieres.appendChild(l);
+      fenetres.push({ el: l, carte, h: 0, s: 0, i: 0, seuil: 0.35 + ((k * 37 + n * 23) % 50) / 100, y: +f.getAttribute("y") });
+    });
+    bati.appendChild(lumieres);
+    svg.append(defs, ciel, bati, traits);
+    carte._ciel = ciel;
+    carte._defil = 0; // soir apporté par le défilement
+    carte._survol = 0; // soir apporté par le survol
+    carte._sol = defs.querySelector("clipPath rect");
+    carte._traits = traits.children;
+    carte._ligneSol = sol;
+    carte._murs = volumes.map((v) => v.murs);
+    carte._texte = carte.querySelectorAll("h3, p");
+  });
+
+  // les constructions sont préparées au chargement (mesure des tracés comprise) : le moment venu, il n'y a plus qu'à jouer
+  function construire(carte) {
+    const tl = gsap.timeline({ paused: true });
+    tl.fromTo(carte, { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5, ease: "power1.out" }, 0)
+      .set(carte._traits, { opacity: 0.65 }, 0)
+      .fromTo(carte._ligneSol, { drawSVG: "50% 50%" }, { drawSVG: "0% 100%", duration: 0.5, ease: "power2.inOut" }, 0.1)
+      .add(carte._murs.map((murs, k) => gsap.fromTo(murs, { drawSVG: "0%" }, { drawSVG: "100%", duration: 0.6, ease: "power2.inOut", delay: 0.35 + k * 0.12 })), 0)
+      .to(carte._sol, { attr: { y: 0 }, duration: 0.9, ease: "power3.inOut" }, 0.8)
+      .to(carte._murs.flat(), { opacity: 0, duration: 0.6, ease: "power1.out" }, 1.55)
+      .to(carte._ligneSol, { opacity: 0.22, duration: 0.6, ease: "power1.out" }, 1.55)
+      .fromTo(carte._texte, { autoAlpha: 0, y: 12 * A }, { autoAlpha: 1, y: 0, duration: 0.6, stagger: 0.08, ease: "power2.out" }, 0.7);
+    return tl;
+  }
+  cartes.forEach((c) => { c._construction = construire(c); });
+  ScrollTrigger.batch(cartes, { start: "top 88%", once: true, onEnter: (lot) => lot.forEach((c, i) => gsap.delayedCall(i * 0.16, () => c._construction.play())) });
+
+  // le soir tombe quand on dépasse les projets ; certaines fenêtres s'allument
+  const dessinerFenetres = () => fenetres.forEach((f) => f.el.setAttribute("opacity", Math.min(1, f.h + f.s + f.i).toFixed(3)));
+  const dessinerCiel = (c) => {
+    const soir = Math.max(c._defil, c._survol);
+    c._ciel.setAttribute("opacity", (soir * 0.75).toFixed(3));
+    c._ombre.setAttribute("opacity", (soir * 0.16).toFixed(3));
+  };
+  ScrollTrigger.create({
+    trigger: ".projets", start: "top 25%", end: "bottom top",
+    onUpdate: (st) => {
+      const p = st.progress;
+      cartes.forEach((c) => { c._defil = p; dessinerCiel(c); });
+      fenetres.forEach((f) => { f.s = gsap.utils.clamp(0, 1, (p - f.seuil) / 0.12); });
+      dessinerFenetres();
+    },
+  });
+
+  // au survol, le soir tombe sur ce bâtiment et il s'habite : ses fenêtres s'allument du bas vers le haut
+  if (matchMedia("(hover: hover)").matches) cartes.forEach((carte) => {
+    const siennes = fenetres.filter((f) => f.carte === carte).sort((a, b) => b.y - a.y);
+    const ciel = () => dessinerCiel(carte);
+    carte.addEventListener("mouseenter", () => {
+      gsap.to(carte, { _survol: 1, duration: 0.6, ease: "power2.out", overwrite: true, onUpdate: ciel });
+      gsap.to(siennes, { h: 1, duration: 0.25, delay: 0.12, stagger: 0.06, ease: "power1.out", overwrite: true, onUpdate: dessinerFenetres });
+    });
+    carte.addEventListener("mouseleave", () => {
+      gsap.to(carte, { _survol: 0, duration: 0.6, ease: "power2.inOut", overwrite: true, onUpdate: ciel });
+      gsap.to(siennes, { h: 0, duration: 0.45, stagger: 0.03, ease: "power1.inOut", overwrite: true, onUpdate: dessinerFenetres });
+    });
+  });
+
+  // la vie continue : de temps en temps, une fenêtre s'allume ou s'éteint (seulement quand les projets sont à l'écran)
+  let visible = false;
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; }).observe(document.querySelector(".projets"));
+  (function vivre() {
+    gsap.delayedCall(gsap.utils.random(1.6, 3.2), vivre);
+    if (!visible) return;
+    const f = fenetres[Math.floor(Math.random() * fenetres.length)];
+    const allumees = fenetres.filter((x) => x.i > 0.5).length;
+    gsap.to(f, { i: f.i > 0.5 || allumees >= 3 ? 0 : 1, duration: 0.7, ease: "power1.inOut", onUpdate: dessinerFenetres });
+  })();
+
+  // --- Savoir-faire : la chaîne de cotes se tire, chaque étape se pose quand le trait l'atteint ---
+  const services = gsap.utils.toArray(".services > div");
+  services.forEach((s) => s.insertAdjacentHTML("afterbegin", '<span class="cote" aria-hidden="true"><i class="l"></i><i class="t"></i><i class="t t2"></i></span>'));
+  const relier = () => services.forEach((s, i) => s.classList.toggle("suite", !!services[i + 1] && services[i + 1].offsetTop === s.offsetTop));
+  relier();
+  addEventListener("resize", relier);
+  // le trait est tiré à vitesse constante, comme au tire-ligne : chaque étape commence quand il atteint son repère
+  const TRAIT = 0.55;
+  const etape = (s) => gsap.timeline()
+    .add(() => montrer(s.querySelectorAll(".cote, h3, p")))
+    .fromTo(s.querySelector(".t:not(.t2)"), { scaleY: 0 }, { scaleY: 1, rotate: 45, duration: 0.25, ease: "power2.out" }, 0)
+    .fromTo(s.querySelector(".l"), { scaleX: 0 }, { scaleX: 1, duration: TRAIT, ease: s.classList.contains("suite") ? "none" : "power1.out" }, 0)
+    .fromTo(s.querySelector(".t2"), { scaleY: 0 }, { scaleY: 1, rotate: 45, duration: 0.25, ease: "power2.out" }, TRAIT)
+    .fromTo(s.querySelector("h3"), { autoAlpha: 0, y: 18 * A }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "power3.out" }, 0.1)
+    .fromTo(s.querySelector("p"), { autoAlpha: 0, y: 12 * A }, { autoAlpha: 1, y: 0, duration: 0.6, ease: "power2.out" }, 0.22);
+  ScrollTrigger.batch(services, { start: "top 85%", once: true, onEnter: (lot) => { const tl = gsap.timeline(); lot.forEach((s, i) => tl.add(etape(s), i * TRAIT)); } });
+
+  // --- Chiffres : des roues qui tournent et se posent ---
+  gsap.utils.toArray(".chiffres strong").forEach((fort) => {
+    const valeur = fort.textContent.trim();
+    fort.setAttribute("aria-label", valeur);
+    fort.innerHTML = [...valeur].map(() => `<span class="roue" aria-hidden="true"><span>${Array.from({ length: 20 }, (_, k) => `<span>${k % 10}</span>`).join("")}</span></span>`).join("");
+    fort._roues = [...fort.querySelectorAll(".roue > span")].map((r, i, tout) => ({ r, fin: (i === tout.length - 1 ? 10 : 0) + +valeur[i] }));
+  });
+  ScrollTrigger.batch(".chiffres > div", {
+    start: "top 88%", once: true,
+    onEnter: (lot) => lot.forEach((bloc, i) => {
+      montrer(bloc);
+      const fort = bloc.querySelector("strong");
+      gsap.fromTo(bloc.querySelector(":scope > span"), { autoAlpha: 0, y: 10 * A }, { autoAlpha: 1, y: 0, duration: 0.6, delay: i * 0.12 + 0.3, ease: "power2.out" });
+      fort._roues.forEach(({ r, fin }, k, tout) => gsap.fromTo(r, { yPercent: 0 }, { yPercent: -(fin / 20) * 100, duration: 1.3, delay: i * 0.12 + (tout.length - 1 - k) * 0.06, ease: "power3.out" }));
+    }),
+  });
+
+  // --- Pied de page ---
+  ScrollTrigger.create({ trigger: "footer", start: "top 80%", once: true, onEnter: () => {
+    montrer("footer p");
+    gsap.fromTo("footer p", { autoAlpha: 0, y: 12 * A }, { autoAlpha: 1, y: 0, duration: 0.7, delay: 0.6, ease: "power2.out" });
+  } });
+})();
+</script>
+</body>
+</html>

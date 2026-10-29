@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tarifs · Calé, la prise de rendez-vous en ligne</title>
+<meta name="description" content="Les tarifs de Calé : Solo, Équipe et Entreprise, en mensuel ou en annuel avec 20 % d'économie.">
+<!--
+  Ce que l'animation raconte : un agenda qui se remplit. Chaque offre montre la journée de ses agendas ; le choix
+  annuel fait rouler les prix et rend visibles les 2,4 mois offerts sur douze.
+  Moment fort : l'offre Équipe arrive, sa journée se remplit en cascade, puis l'étiquette « Le plus choisi » se pose.
+  À la fin : trois offres lisibles, une ligne « maintenant » qui avance lentement dans les agendas et, de temps en
+  temps, un rendez-vous qui se prend.
+  Choix « réduire les animations » : respecté. Les déplacements sont ramenés à zéro, la vie des agendas s'arrête,
+  les changements d'état (prix, mois offerts) restent, plus courts.
+-->
+<script>
+  document.documentElement.classList.add("js");
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) document.documentElement.classList.add("reduit");
+</script>
+<style>
+  :root {
+    color-scheme: light;
+    --fond: #f4f2ec;
+    --surface: #ffffff;
+    --encre: #16181b;
+    --gris: #5c6067;
+    --trait: #e2ded4;
+    --vert: #1d5c4d;
+    --vert-clair: #d6e8e0;
+    --nuit: #132a24;
+    --nuit-2: #1b3a32;
+    --ambre: #eeae3c;
+    --ambre-clair: #fbecc9;
+    --rayon: 18px;
+    --courbe: cubic-bezier(.2, .7, .2, 1);
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--fond);
+    color: var(--encre);
+    font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+  /* En-tête */
+  .haut {
+    max-width: 1160px; margin: 0 auto; padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; font-size: 1.15rem; letter-spacing: -.01em; text-decoration: none; }
+  .logo svg { display: block; }
+  .haut nav { display: flex; gap: 6px; align-items: center; }
+  .haut nav a { text-decoration: none; font-size: .95rem; color: var(--gris); padding: 10px 12px; border-radius: 10px; }
+  .haut nav a:hover { color: var(--encre); }
+  .haut nav a.plein { color: var(--encre); border: 1px solid var(--trait); background: var(--surface); }
+
+  /* Titre */
+  .tarifs { max-width: 1160px; margin: 0 auto; padding: 18px 24px 72px; }
+  .tete { text-align: center; max-width: 760px; margin: 0 auto; }
+  .surtitre { margin: 0 0 14px; font-size: .85rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--vert); }
+  h1 { margin: 0; font-size: clamp(2rem, 4.2vw, 3.1rem); line-height: 1.06; letter-spacing: -.03em; font-weight: 700; }
+  .mot { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .06em; margin-bottom: -.06em; }
+  .mot > span { display: inline-block; }
+  @media (max-width: 560px) { h1 .saut { display: none; } }
+  .chapo { margin: 16px auto 0; max-width: 600px; color: var(--gris); font-size: 1.08rem; }
+
+  /* Sélecteur */
+  .choix { margin: 30px auto 0; display: flex; justify-content: center; }
+  .bascule {
+    position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 5px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--trait); box-shadow: 0 1px 2px rgba(22, 24, 27, .04);
+  }
+  .bascule input { position: absolute; opacity: 0; pointer-events: none; }
+  .bascule label {
+    position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; gap: 8px;
+    min-width: 150px; height: 44px; padding: 0 18px; border-radius: 22px; cursor: pointer; font-weight: 600;
+    font-size: .98rem; color: var(--gris); user-select: none; white-space: nowrap;
+  }
+  .bascule label:hover { color: var(--encre); }
+  .bascule input:focus-visible + label { outline: 2px solid var(--vert); outline-offset: 3px; }
+  .curseur {
+    position: absolute; top: 5px; left: 5px; height: 44px; width: calc(50% - 5px); border-radius: 22px;
+    z-index: 2; background: var(--encre); will-change: transform; overflow: hidden; pointer-events: none;
+  }
+  /* copie blanche des deux libellés, qui glisse en sens inverse : le texte est blanc exactement là où passe le curseur */
+  .curseur-int { position: absolute; top: 0; left: 0; width: 200%; height: 100%; display: grid; grid-template-columns: 1fr 1fr; will-change: transform; }
+  .curseur-int span.l { display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: .98rem; color: #fff; white-space: nowrap; }
+  .curseur-int .remise { background: var(--ambre); color: var(--encre); }
+  .remise {
+    font-size: .78rem; font-weight: 700; padding: 3px 8px; border-radius: 11px; line-height: 16px;
+    background: var(--ambre-clair); color: #7a4d00; transition: background .3s, color .3s;
+  }
+
+  /* Les douze mois */
+  .annee { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 18px; }
+  .mois { position: relative; display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; width: 312px; padding-bottom: 7px; }
+  .crochet { position: absolute; right: 0; bottom: 0; width: calc(20% - .8px); height: 3px; border-radius: 2px; background: var(--ambre); }
+  .mois i {
+    position: relative; grid-row: 1; display: block; height: 10px; border-radius: 3px; overflow: hidden; background: var(--ambre);
+  }
+  .mois i b { position: absolute; inset: 0; background: #c9c3b6; transform-origin: 0 50%; }
+  .legende { position: relative; height: 22px; width: 100%; max-width: 440px; overflow: hidden; font-size: .9rem; color: var(--gris); text-align: center; }
+  .legende span { position: absolute; inset: 0; white-space: nowrap; }
+  .legende strong { font-weight: 600; }
+  .legende strong { color: #8a5a00; }
+  .legende .a { opacity: 0; }
+
+  /* Les offres */
+  .offres {
+    margin: 44px auto 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; align-items: stretch;
+    max-width: 1100px;
+  }
+  .offre {
+    position: relative; display: flex; flex-direction: column; padding: 26px 26px 30px; border-radius: var(--rayon);
+    background: var(--surface); border: 1px solid var(--trait);
+    box-shadow: 0 1px 2px rgba(22, 24, 27, .04), 0 12px 32px -18px rgba(22, 24, 27, .18);
+    transition: border-color .25s var(--courbe);
+  }
+  .offre:hover { border-color: #cfc9bc; }
+  .offre.vedette {
+    background: var(--nuit); color: #f3f1ea; border-color: var(--nuit); margin: -16px 0; padding-top: 42px; padding-bottom: 46px;
+    box-shadow: 0 2px 4px rgba(19, 42, 36, .2), 0 30px 60px -28px rgba(19, 42, 36, .55);
+  }
+  .etiquette {
+    position: absolute; top: -13px; left: 50%; transform: translateX(-50%); white-space: nowrap;
+    padding: 4px 12px; border-radius: 13px; font-size: .8rem; font-weight: 700; line-height: 18px;
+    background: var(--ambre); color: var(--encre);
+  }
+  .offre h2 { margin: 0; font-size: 1.3rem; letter-spacing: -.01em; }
+  .pour { margin: 4px 0 0; color: var(--gris); font-size: .95rem; min-height: 2.9em; }
+  .vedette .pour { color: #b8c7c0; }
+
+  /* Mini agenda : une colonne par personne, une ligne par heure */
+  .agenda { margin: 0 0 20px; }
+  .agenda-tete { display: flex; justify-content: space-between; font-size: .76rem; color: var(--gris); margin-bottom: 8px; }
+  .vedette .agenda-tete { color: #9fb5ac; }
+  .agenda-tete .nb { display: inline-block; font-variant-numeric: tabular-nums; color: var(--encre); font-weight: 600; }
+  .vedette .agenda-tete .nb { color: #fff; }
+  .corps { display: grid; grid-template-columns: 28px 1fr; column-gap: 6px; }
+  .heures { position: relative; grid-row: 2; font-size: .64rem; color: #9a968c; font-variant-numeric: tabular-nums; }
+  .vedette .heures { color: #6f8a80; }
+  .heures span { position: absolute; right: 0; transform: translateY(-50%); line-height: 1; }
+  .personnes { grid-column: 2; display: flex; gap: 6px; height: 22px; margin-bottom: 6px; overflow: hidden; }
+  .personnes span {
+    flex: 0 0 36px; display: flex; align-items: center; justify-content: center; height: 22px; border-radius: 11px;
+    font-size: .62rem; font-weight: 700; letter-spacing: .02em; background: #ece8df; color: #6b675e;
+  }
+  .vedette .personnes span { background: rgba(255, 255, 255, .09); color: #c9d6d0; }
+  .grille {
+    grid-column: 2; grid-row: 2; position: relative; height: 88px; overflow: hidden;
+    background: repeating-linear-gradient(to bottom, rgba(22, 24, 27, .07) 0 1px, transparent 1px 11px);
+    border-bottom: 1px solid rgba(22, 24, 27, .07);
+  }
+  .vedette .grille { background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, .07) 0 1px, transparent 1px 11px); border-bottom-color: rgba(255, 255, 255, .07); }
+  .fondu .personnes, .fondu .grille { -webkit-mask-image: linear-gradient(to right, #000 62%, transparent 96%); mask-image: linear-gradient(to right, #000 62%, transparent 96%); }
+  .rdv {
+    position: absolute; width: 36px; border-radius: 3px; background: #2f7a66; box-shadow: inset 2px 0 0 #164c3f;
+    transition: background-color .8s var(--courbe), box-shadow .8s var(--courbe);
+  }
+  .rdv i { position: absolute; inset: 0; border-radius: 3px; background: var(--ambre); }
+  .rdv.passe { background: #c9ddd4; box-shadow: inset 2px 0 0 #a9c7ba; }
+  .vedette .rdv { background: #7fc4ac; box-shadow: inset 2px 0 0 #b9e6d6; }
+  .vedette .rdv.passe { background: #2c5248; box-shadow: inset 2px 0 0 #3b675b; }
+  .maintenant { position: absolute; left: 0; right: 0; top: 0; height: 0; z-index: 2; will-change: transform; }
+  .maintenant::before { content: ""; position: absolute; left: 0; right: 0; top: -.5px; height: 1.5px; background: var(--ambre); }
+  .maintenant::after { content: ""; position: absolute; left: -3px; top: -3.5px; width: 7px; height: 7px; border-radius: 4px; background: var(--ambre); }
+
+  /* Prix */
+  .prix { margin-top: 18px; display: flex; align-items: flex-end; gap: 8px; min-height: 76px; }
+  .montant { position: relative; }
+  .ancien {
+    position: absolute; left: 2px; top: -18px; font-size: .9rem; color: var(--gris); white-space: nowrap; opacity: 0;
+  }
+  .vedette .ancien { color: #9fb5ac; }
+  .ancien i { position: absolute; left: -2px; right: -2px; top: 52%; height: 1.5px; background: currentColor; transform: scaleX(0); transform-origin: 0 50%; }
+  .chiffres { display: flex; font-size: 3.4rem; font-weight: 700; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
+  .ch { display: block; height: 1.1em; overflow: hidden; }
+  .ch > span { display: flex; flex-direction: column; }
+  .ch > span > span { display: block; height: 1.1em; line-height: 1.1em; }
+  .unite { display: flex; flex-direction: column; padding-bottom: 9px; font-size: .86rem; line-height: 1.25; color: var(--gris); }
+  .unite b { color: var(--encre); font-size: 1.05rem; }
+  .vedette .unite { color: #b8c7c0; }
+  .vedette .unite b { color: #fff; }
+  .facture { position: relative; height: 22px; margin-top: 6px; overflow: hidden; font-size: .88rem; color: var(--gris); }
+  .vedette .facture { color: #b8c7c0; }
+  .facture span { position: absolute; inset: 0; white-space: nowrap; }
+  .facture .a { opacity: 0; }
+  .facture em { font-style: normal; color: #8a5a00; font-weight: 600; }
+  .vedette .facture em { color: var(--ambre); }
+
+  /* Bouton */
+  .bouton {
+    margin-top: 22px; display: flex; align-items: center; justify-content: center; gap: 10px; height: 50px;
+    border-radius: 12px; font-weight: 600; text-decoration: none; border: 1px solid var(--trait);
+    background: var(--fond); transition: background .2s var(--courbe), border-color .2s var(--courbe);
+  }
+  .bouton:hover { background: #ebe7de; border-color: #d6d0c3; }
+  .bouton svg { transition: transform .2s var(--courbe); }
+  .bouton:hover svg { transform: translateX(3px); }
+  .bouton:focus-visible { outline: 2px solid var(--vert); outline-offset: 3px; }
+  .vedette .bouton { background: var(--ambre); border-color: var(--ambre); color: var(--encre); }
+  .vedette .bouton:hover { background: #f5bd57; border-color: #f5bd57; }
+  .vedette .bouton:focus-visible { outline-color: var(--ambre); }
+
+  /* Fonctions */
+  .fonctions { margin: 24px 0 0; padding: 22px 0 0; border-top: 1px solid var(--trait); list-style: none; display: grid; gap: 11px; font-size: .95rem; }
+  .vedette .fonctions { border-top-color: rgba(255, 255, 255, .12); }
+  .fonctions li { display: grid; grid-template-columns: 20px 1fr; gap: 10px; align-items: start; }
+  .fonctions li.base { color: var(--gris); font-size: .88rem; display: block; }
+  .vedette .fonctions li.base { color: #9fb5ac; }
+  .fonctions svg { margin-top: 3px; color: var(--vert); }
+  .vedette .fonctions svg { color: #7fc4ac; }
+
+  .rassure { margin: 56px auto 0; text-align: center; color: var(--gris); font-size: .95rem; }
+  .rassure a { color: var(--vert); font-weight: 600; }
+
+  footer { border-top: 1px solid var(--trait); padding: 26px 24px; text-align: center; color: var(--gris); font-size: .85rem; }
+
+  /* États de départ (le JavaScript les lève) */
+  .js .entre { visibility: hidden; }
+
+  @media (max-width: 940px) {
+    .offres { grid-template-columns: 1fr; max-width: 460px; gap: 18px; }
+    .offre.vedette { margin: 14px 0; padding-top: 30px; padding-bottom: 30px; }
+    .pour { min-height: 0; }
+    /* offres empilées : la bascule reste à portée de pouce pendant qu'on descend */
+    .choix { position: sticky; top: 0; z-index: 5; margin: 26px -24px 0; padding: 8px 24px; background: rgba(244, 242, 236, .92); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+    .annee { margin-top: 10px; }
+  }
+  @media (max-width: 560px) {
+    .haut { padding: 16px; }
+    .haut nav a:not(.plein) { display: none; }
+    .tarifs { padding: 22px 16px 56px; }
+    .chapo { font-size: 1rem; }
+    .choix { margin: 22px -16px 0; padding: 8px 16px; }
+    .bascule { width: 100%; }
+    .bascule label { min-width: 0; padding: 0 10px; }
+    .mois { width: min(100%, 312px); }
+    .legende { width: 100%; }
+    .legende { font-size: .84rem; }
+    .offres { margin-top: 30px; }
+    .offre { padding: 22px 20px 26px; }
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js" onerror="document.documentElement.classList.remove('js')"></script>
+</head>
+<body>
+<header class="haut">
+  <a class="logo" href="#" aria-label="Calé, accueil">
+    <svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true">
+      <rect x="1.5" y="4" width="27" height="24" rx="6" fill="#16181b"/>
+      <rect x="7" y="1" width="3" height="7" rx="1.5" fill="#16181b"/>
+      <rect x="20" y="1" width="3" height="7" rx="1.5" fill="#16181b"/>
+      <path d="M9 17.5l4 4 8-9" fill="none" stroke="#eeae3c" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    Calé
+  </a>
+  <nav aria-label="Principale">
+    <a href="#">Fonctionnalités</a>
+    <a href="#" aria-current="page">Tarifs</a>
+    <a class="plein" href="#">Se connecter</a>
+  </nav>
+</header>
+
+<main>
+  <section class="tarifs" id="tarifs" aria-labelledby="titre">
+    <div class="tete">
+      <p class="surtitre entre">Tarifs</p>
+      <h1 id="titre" class="entre">Vos clients réservent seuls.<br> Vous choisissez la formule.</h1>
+      <p class="chapo entre">Quatorze jours d'essai gratuit sur chaque offre, sans carte bancaire.</p>
+    </div>
+
+    <div class="choix entre">
+      <fieldset class="bascule" style="border:0;margin:0;min-inline-size:0">
+        <legend class="sr">Période de facturation</legend>
+        <span class="curseur" aria-hidden="true"><span class="curseur-int"><span class="l">Mensuel</span><span class="l">Annuel <span class="remise">−20 %</span></span></span></span>
+        <input type="radio" name="periode" id="p-mois" value="mois" checked>
+        <label for="p-mois">Mensuel</label>
+        <input type="radio" name="periode" id="p-an" value="an">
+        <label for="p-an">Annuel <span class="remise">−20 %</span></label>
+      </fieldset>
+    </div>
+    <div class="annee entre">
+        <div class="mois" aria-hidden="true"><span class="crochet"></span></div>
+        <div class="legende">
+          <span class="m">À l'année, les <strong>2,4 derniers mois</strong> sont offerts.</span>
+          <span class="a">Douze mois d'accès, dont <strong>2,4 mois offerts</strong>.</span>
+        </div>
+    </div>
+
+    <div class="offres">
+      <article class="offre entre" data-gens="CL" data-plein=".5">
+        <div class="agenda" aria-hidden="true">
+          <div class="agenda-tete"><span class="jour">Aujourd'hui</span><span><span class="nb">0</span> rendez-vous</span></div>
+          <div class="corps"></div>
+        </div>
+        <h2>Solo</h2>
+        <p class="pour">Pour un indépendant qui gère seul son agenda.</p>
+        <div class="prix">
+          <div class="montant">
+            <span class="ancien">15 € <i></i></span>
+            <div class="chiffres" data-m="15" data-a="12"></div>
+          </div>
+          <div class="unite"><b>€ HT</b>par mois</div>
+        </div>
+        <p class="sr" aria-live="polite" data-texte="Solo"></p>
+        <div class="facture">
+          <span class="m">Facturé chaque mois, sans engagement</span>
+          <span class="a">144 € par an, <em>36 € économisés</em></span>
+        </div>
+        <a class="bouton" href="#">Commencer l'essai <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <ul class="fonctions">
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>1 agenda</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Page de réservation à votre nom</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Rappels par e-mail la veille</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Synchronisation Google et Outlook</li>
+        </ul>
+      </article>
+
+      <article class="offre vedette entre" data-gens="AN JB SM LR KD" data-plein=".55">
+        <span class="etiquette">Le plus choisi</span>
+        <div class="agenda" aria-hidden="true">
+          <div class="agenda-tete"><span class="jour">Aujourd'hui</span><span><span class="nb">0</span> rendez-vous</span></div>
+          <div class="corps"></div>
+        </div>
+        <h2>Équipe</h2>
+        <p class="pour">Pour un cabinet ou un salon de deux à dix personnes.</p>
+        <div class="prix">
+          <div class="montant">
+            <span class="ancien">45 € <i></i></span>
+            <div class="chiffres" data-m="45" data-a="36"></div>
+          </div>
+          <div class="unite"><b>€ HT</b>par mois</div>
+        </div>
+        <p class="sr" aria-live="polite" data-texte="Équipe"></p>
+        <div class="facture">
+          <span class="m">Facturé chaque mois, sans engagement</span>
+          <span class="a">432 € par an, <em>108 € économisés</em></span>
+        </div>
+        <a class="bouton" href="#">Essayer avec mon équipe <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <ul class="fonctions">
+          <li class="base">Tout Solo, et en plus :</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Jusqu'à 10 agendas</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>300 rappels par SMS chaque mois</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Acompte payé à la réservation</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Rendez-vous répartis entre collègues</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Taux de remplissage par semaine</li>
+        </ul>
+      </article>
+
+      <article class="offre entre" data-gens="PM EV TH NC OB RS GL FA YD" data-plein=".55">
+        <div class="agenda" aria-hidden="true">
+          <div class="agenda-tete"><span class="jour">Aujourd'hui</span><span><span class="nb">0</span> rendez-vous</span></div>
+          <div class="corps fondu"></div>
+        </div>
+        <h2>Entreprise</h2>
+        <p class="pour">Pour plusieurs établissements et des besoins sur mesure.</p>
+        <div class="prix">
+          <div class="montant">
+            <span class="ancien">95 € <i></i></span>
+            <div class="chiffres" data-m="95" data-a="76"></div>
+          </div>
+          <div class="unite"><b>€ HT</b>par mois</div>
+        </div>
+        <p class="sr" aria-live="polite" data-texte="Entreprise"></p>
+        <div class="facture">
+          <span class="m">Facturé chaque mois, sans engagement</span>
+          <span class="a">912 € par an, <em>228 € économisés</em></span>
+        </div>
+        <a class="bouton" href="#">Parler à un conseiller <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h9M8.5 4l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+        <ul class="fonctions">
+          <li class="base">Tout Équipe, et en plus :</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Agendas et établissements illimités</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>2 000 rappels par SMS chaque mois</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Connexion unique (SSO) et rôles</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>API et webhooks</li>
+          <li><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Un interlocuteur dédié</li>
+        </ul>
+      </article>
+    </div>
+
+    <p class="rassure entre">Une question avant de choisir ? <a href="#">Réservez quinze minutes avec nous</a>, dans notre propre agenda.</p>
+  </section>
+</main>
+
+<footer>Calé, prise de rendez-vous en ligne. Prix hors taxes, données hébergées en France.</footer>
+
+<script>
+(() => {
+  const html = document.documentElement;
+  const reduit = html.classList.contains("reduit");
+  const A = reduit ? 0 : 1; // multiplie les amplitudes de déplacement
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+
+  /* ---------- Construction : chiffres, mois, agendas ---------- */
+  const fmt = (n) => String(n).padStart(2, "0").split("").map(Number);
+  $$(".chiffres").forEach((el) => {
+    el.setAttribute("aria-hidden", "true");
+    el.innerHTML = fmt(el.dataset.m).map(() =>
+      `<span class="ch"><span>${[0,1,2,3,4,5,6,7,8,9].map((d) => `<span>${d}</span>`).join("")}</span></span>`
+    ).join("");
+  });
+  const moisEl = $(".mois");
+  moisEl.insertAdjacentHTML("afterbegin", Array.from({ length: 12 }, () => "<i><b></b></i>").join(""));
+  const paye = $$(".mois b");
+
+  // pseudo-hasard reproductible : la même journée à chaque chargement
+  let graine = 7;
+  const hasard = () => ((graine = (graine * 16807) % 2147483647) / 2147483647);
+  const RANGS = 8, LIGNE = 11, COL = 42; // de 9 h à 17 h, une ligne de 11 px par heure, une colonne de 42 px par personne
+
+  const agendas = $$(".offre").map((carte) => {
+    const corps = $(".corps", carte);
+    const gens = carte.dataset.gens.split(" ");
+    corps.innerHTML =
+      `<div class="personnes">${gens.map((g) => `<span>${g}</span>`).join("")}</div>` +
+      `<div class="heures">${[0, 2, 4, 6, 8].map((r) => `<span style="top:${r * LIGNE}px">${9 + r} h</span>`).join("")}</div>` +
+      `<div class="grille"><div class="maintenant"></div></div>`;
+    const grille = $(".grille", corps);
+    return { carte, grille, cols: gens.length, plein: +carte.dataset.plein, ligne: $(".maintenant", grille), nb: $(".nb", carte), jour: $(".jour", carte), rdv: [] };
+  });
+
+  function poser(ag, col, rang, duree) {
+    const el = document.createElement("div");
+    el.className = "rdv";
+    el.style.left = `${col * COL}px`;
+    el.style.top = `${rang * LIGNE + 2}px`;
+    el.style.height = `${duree * LIGNE - 3}px`;
+    ag.grille.insertBefore(el, ag.ligne);
+    const r = { el, col, rang, duree, passe: false };
+    ag.rdv.push(r);
+    ag.nb.textContent = ag.rdv.length;
+    return r;
+  }
+  function libre(ag, col, rang, duree) {
+    if (rang + duree > RANGS) return false;
+    return !ag.rdv.some((r) => r.col === col && rang < r.rang + r.duree && r.rang < rang + duree);
+  }
+  function remplir(ag, depuis = 0) {
+    for (let c = 0; c < ag.cols; c++) for (let rg = depuis; rg < RANGS; rg++) {
+      if (hasard() < ag.plein) {
+        const d = hasard() < .3 ? 2 : 1;
+        if (libre(ag, c, rg, d)) { poser(ag, c, rg, d); rg += d - 1; }
+      }
+    }
+  }
+  agendas.forEach((ag) => remplir(ag));
+
+  /* ---------- Sélecteur mensuel / annuel ---------- */
+  const curseur = $(".curseur"), curseurInt = $(".curseur-int");
+  const legM = $(".legende .m"), legA = $(".legende .a");
+  let annuel = false;
+
+  function permuter(sortant, entrant, sens, delai = 0) {
+    gsap.to(sortant, { yPercent: -100 * sens * A, autoAlpha: 0, duration: .25, delay: delai, ease: "power2.in", overwrite: true });
+    gsap.fromTo(entrant, { yPercent: 100 * sens * A }, { yPercent: 0, autoAlpha: 1, duration: .4, delay: delai + .12, ease: "power3.out", overwrite: true });
+  }
+
+  function regler(versAnnuel, instant = false) {
+    annuel = versAnnuel;
+    const d = instant ? 0 : 1;
+    const sens = versAnnuel ? 1 : -1;
+    // le curseur glisse ; sa copie blanche des libellés glisse en sens inverse, le texte reste lisible tout le trajet
+    gsap.to(curseur, { xPercent: versAnnuel ? 100 : 0, duration: .5 * d, ease: "power3.inOut", overwrite: true });
+    gsap.to(curseurInt, { xPercent: versAnnuel ? -50 : 0, duration: .5 * d, ease: "power3.inOut", overwrite: true });
+
+    // les prix roulent, de la carte mise en avant vers les deux autres
+    agendas.forEach((ag, i) => {
+      const el = $(".chiffres", ag.carte);
+      const vise = fmt(versAnnuel ? el.dataset.a : el.dataset.m);
+      const ecart = i === 1 ? 0 : .05;
+      $$(".ch > span", el).forEach((bande, k) => {
+        gsap.to(bande, { yPercent: -10 * vise[k], duration: .5 * d, delay: (.06 + ecart + k * .04) * d, ease: "power3.inOut", overwrite: true });
+      });
+      const ancien = $(".ancien", ag.carte), barre = $(".ancien i", ag.carte);
+      gsap.to(ancien, { autoAlpha: versAnnuel ? 1 : 0, y: versAnnuel ? 0 : 4 * A, duration: .3 * d, delay: (versAnnuel ? .15 + ecart : 0) * d, overwrite: true });
+      gsap.to(barre, { scaleX: versAnnuel ? 1 : 0, duration: .3 * d, delay: (versAnnuel ? .3 + ecart : 0) * d, ease: "power2.out", overwrite: true });
+      const fM = $(".facture .m", ag.carte), fA = $(".facture .a", ag.carte);
+      if (instant) { gsap.set(versAnnuel ? fM : fA, { autoAlpha: 0 }); gsap.set(versAnnuel ? fA : fM, { autoAlpha: 1, yPercent: 0 }); }
+      else permuter(versAnnuel ? fM : fA, versAnnuel ? fA : fM, sens, .08 + ecart);
+      const sr = $("[data-texte]", ag.carte);
+      if (!instant) sr.textContent = `${sr.dataset.texte} : ${versAnnuel ? el.dataset.a : el.dataset.m} € hors taxes par mois`;
+    });
+
+    // les douze mois : la part payée recule de la droite, les mois offerts apparaissent
+    const vise = paye.map((_, k) => (versAnnuel ? (k < 9 ? 1 : k === 9 ? .6 : 0) : 1));
+    const ordre = versAnnuel ? [11, 10, 9] : [9, 10, 11];
+    ordre.forEach((k, n) => gsap.to(paye[k], { scaleX: vise[k], duration: .35 * d, delay: (.1 + n * .07) * d, ease: "power2.inOut", overwrite: true }));
+    if (instant) { gsap.set(versAnnuel ? legM : legA, { autoAlpha: 0 }); gsap.set(versAnnuel ? legA : legM, { autoAlpha: 1 }); }
+    else permuter(versAnnuel ? legM : legA, versAnnuel ? legA : legM, sens, .1);
+  }
+
+  $$(".bascule input").forEach((inp) => inp.addEventListener("change", () => regler(inp.value === "an")));
+
+  /* ---------- Entrée ---------- */
+  // le titre, mot par mot dans un masque
+  const h1 = $("h1");
+  h1.innerHTML = h1.innerHTML.split("<br>").map((ligne) =>
+    ligne.trim().split(" ").map((m) => `<span class="mot"><span>${m}</span></span>`).join(" ")).join("<br class=\"saut\"> ");
+  regler(false, true);
+
+  const [solo, equipe, entreprise] = agendas;
+  // les rendez-vous d'Équipe, rangés par heure : la journée se remplit du matin au soir
+  const cascade = [...equipe.rdv].sort((a, b) => a.rang - b.rang || a.col - b.col).map((r) => r.el);
+  const compte = { n: equipe.rdv.length };
+  const tl = gsap.timeline({ defaults: { ease: "power3.out" }, onComplete: demarrerVie });
+  gsap.set(".entre", { visibility: "visible" });
+  tl.from(".surtitre", { autoAlpha: 0, y: 8 * A, duration: .4 }, 0)
+    .from(".mot > span", { yPercent: 105 * A, autoAlpha: A ? 1 : 0, duration: .6, stagger: .035 }, .05)
+    .from(".chapo", { autoAlpha: 0, y: 10 * A, duration: .5 }, .3)
+    .from([".choix", ".annee"], { autoAlpha: 0, y: 12 * A, duration: .5, stagger: .06 }, .4)
+    // l'offre mise en avant arrive la première, de plus bas, les deux autres la suivent
+    .from(equipe.carte, { y: 70 * A, duration: .9, ease: "power4.out" }, .5)
+    .from(equipe.carte, { autoAlpha: 0, duration: .15, ease: "none" }, .5)
+    .from([solo.carte, entreprise.carte], { y: 40 * A, duration: .8 }, .62)
+    .from([solo.carte, entreprise.carte], { autoAlpha: 0, duration: .3, ease: "none" }, .62)
+    // les prix roulent jusqu'à leur valeur pendant que les cartes se posent
+    .from($$(".chiffres .ch > span"), { yPercent: (i, el) => (A ? 0 : gsap.getProperty(el, "yPercent")), duration: .6, ease: "power3.out", stagger: { each: .03, from: "center" } }, .55)
+    // la journée de l'équipe se remplit du matin au soir, le compteur suit
+    .from(cascade, { autoAlpha: 0, y: -5 * A, duration: .3, stagger: .022, ease: "power2.out" }, .85)
+    .from(compte, { n: 0, duration: .3 + .022 * (cascade.length - 1), ease: "none", onUpdate() { equipe.nb.textContent = Math.round(compte.n); } }, .85)
+    .from(".etiquette", { autoAlpha: 0, y: -10 * A, scale: A ? .9 : 1, duration: .5, ease: "back.out(2)" }, 1.4)
+    .from(".rassure", { autoAlpha: 0, duration: .5 }, 1.2);
+
+  /* ---------- La vie après l'entrée ---------- */
+  const JOUR = 40; // secondes pour une journée de 9 h à 17 h
+  const JOURS = ["Aujourd'hui", "Demain", "Jeudi", "Vendredi", "Lundi", "Mardi", "Mercredi"];
+  let p = 0.22, jourN = 0, hauteur = RANGS * LIGNE, vivant = false, visible = true, dernier = 0, prochain = 2.2, tour = 0, tourne = false;
+  function placerLigne() { agendas.forEach((ag) => gsap.set(ag.ligne, { y: p * hauteur })); }
+  function marquer() {
+    agendas.forEach((ag) => ag.rdv.forEach((r) => {
+      const fini = (r.rang + r.duree) / RANGS <= p;
+      if (fini !== r.passe) { r.passe = fini; r.el.classList.toggle("passe", fini); }
+    }));
+  }
+  placerLigne(); marquer();
+  gsap.set($$(".maintenant"), { autoAlpha: 0 });
+
+  function reserver() {
+    // un rendez-vous se prend dans l'agenda suivant, à une heure encore à venir
+    const ag = agendas[tour++ % agendas.length];
+    const des = Math.ceil(p * RANGS) + 1;
+    const essais = [];
+    for (let c = 0; c < Math.min(ag.cols, 6); c++) for (let rg = des; rg < RANGS; rg++) if (libre(ag, c, rg, 1)) essais.push([c, rg]);
+    if (!essais.length) return;
+    const [c, rg] = essais[Math.floor(hasard() * essais.length)];
+    const r = poser(ag, c, rg, 1);
+    const eclat = document.createElement("i");
+    r.el.appendChild(eclat);
+    // le bloc se dessine de haut en bas comme un créneau qu'on tire, s'allume en ambre puis prend sa couleur
+    gsap.timeline()
+      .fromTo(r.el, { clipPath: "inset(0 0 100% 0)" }, { clipPath: "inset(0 0 0% 0)", duration: .35, ease: "power2.out" })
+      .to(eclat, { autoAlpha: 0, duration: 1.4, ease: "power2.in", onComplete: () => eclat.remove() }, .25)
+      .fromTo(ag.nb, { yPercent: -70, autoAlpha: 0 }, { yPercent: 0, autoAlpha: 1, duration: .35, ease: "power3.out" }, .1);
+  }
+
+  function nouvelleJournee() {
+    // la journée finie s'efface, celle du lendemain se remplit du matin au soir, puis la ligne repart de 9 h
+    tourne = true;
+    const anciens = agendas.flatMap((ag) => ag.rdv.map((r) => r.el));
+    gsap.timeline()
+      .to($$(".maintenant"), { autoAlpha: 0, duration: .4 })
+      .to(anciens, { autoAlpha: 0, duration: .45, stagger: .004 }, "<")
+      .add(() => {
+        anciens.forEach((el) => el.remove());
+        agendas.forEach((ag) => { ag.rdv = []; remplir(ag); });
+        jourN = (jourN + 1) % JOURS.length;
+        agendas.forEach((ag) => (ag.jour.textContent = JOURS[jourN]));
+        p = 0; placerLigne(); marquer();
+        const nouveaux = agendas.flatMap((ag) => [...ag.rdv].sort((a, b) => a.rang - b.rang).map((r) => r.el));
+        gsap.timeline({ onComplete() { tourne = false; } })
+          .from(nouveaux, { autoAlpha: 0, y: -4, duration: .3, stagger: .008, ease: "power2.out" })
+          .to($$(".maintenant"), { autoAlpha: 1, duration: .5 }, "-=.2");
+      });
+  }
+
+  function boucle(t) {
+    if (!vivant) return;
+    const dt = Math.min((t - dernier) / 1000, .1);
+    dernier = t;
+    if (visible && !tourne) {
+      p += dt / JOUR;
+      prochain -= dt;
+      if (prochain <= 0) { reserver(); prochain = 2.6 + hasard() * 1.4; }
+      if (p >= 1) nouvelleJournee();
+      else { placerLigne(); marquer(); }
+    }
+    requestAnimationFrame(boucle);
+  }
+  function demarrerVie() {
+    if (reduit) { gsap.set($$(".maintenant"), { autoAlpha: 1 }); return; }
+    gsap.to($$(".maintenant"), { autoAlpha: 1, duration: .6 });
+    vivant = true;
+    dernier = performance.now();
+    requestAnimationFrame(boucle);
+  }
+  // rien ne tourne quand les offres sont hors de l'écran
+  new IntersectionObserver((e) => { visible = e.some((x) => x.isIntersecting); }).observe($(".offres"));
+})();
+</script>
+</body>
+</html>

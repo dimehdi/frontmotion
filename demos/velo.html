@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Merle, vélos de ville brasés à la main</title>
+<!--
+  Ce que l'animation raconte : un vélo naît sur l'établi. Le plan se trace, les tubes d'acier s'emboîtent et chaque
+  raccord s'allume sous la brasure, la peinture passe, les roues se montent, puis on le pousse et il part dans la rue.
+  Moment fort (vers 2,8 s) : la poussée. Le vélo quitte son plan, les roues tournent, l'étiquette du cadre balance.
+  À la fin : un vélo fini posé sur la rue, à côté du titre. Il vit encore : l'étiquette bouge à peine, le vélo roule
+  un peu vers la souris, avec son poids.
+-->
+<style>
+  :root {
+    --papier: #eee6d8;
+    --encre: #1f1a16;
+    --encre-douce: #5a5048;
+    --rouge: #7b2219;
+    --laiton: #b5884a;
+    --mine: #8b8276;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--papier);
+    color: var(--encre);
+    font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .accueil {
+    position: relative;
+    min-height: 100svh;
+    display: grid;
+    grid-template-columns: minmax(0, 5.2fr) minmax(0, 6.8fr);
+    column-gap: 32px;
+    grid-template-rows: auto 1fr;
+    overflow: clip;
+    padding: 0 clamp(20px, 4vw, 64px);
+  }
+  /* en-tête */
+  .entete {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 26px 0 0;
+  }
+  .marque {
+    display: flex; align-items: baseline; gap: 12px;
+    color: inherit; text-decoration: none;
+  }
+  .marque b {
+    font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+    font-size: 30px; font-weight: 600; letter-spacing: -0.02em;
+  }
+  .marque span { font-size: 13px; color: var(--encre-douce); }
+  .menu { display: flex; gap: 30px; }
+  .menu a {
+    color: var(--encre); text-decoration: none; font-size: 15px;
+    padding: 12px 0; background: linear-gradient(currentColor, currentColor) 0 calc(100% - 8px) / 0 1px no-repeat;
+    transition: background-size .25s ease;
+  }
+  .menu a:hover, .menu a:focus-visible { background-size: 100% 1px; }
+
+  /* texte */
+  .texte {
+    align-self: center;
+    padding: 40px 0 80px;
+    position: relative; z-index: 3;
+  }
+  .surtitre {
+    font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--encre-douce);
+    margin: 0 0 22px;
+  }
+  h1 {
+    font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+    font-weight: 500;
+    font-size: clamp(44px, 5.7vw, 100px);
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin: 0 0 28px;
+  }
+  h1 em { font-style: italic; color: var(--rouge); }
+  .ligne { display: block; overflow: hidden; padding-bottom: .12em; margin-bottom: -.12em; }
+  .ligne > span { display: block; white-space: nowrap; }
+  .accroche {
+    font-size: clamp(17px, 1.35vw, 20px); line-height: 1.55; color: var(--encre-douce);
+    max-width: 30em; margin: 0 0 36px;
+  }
+  .bouton {
+    display: inline-flex; align-items: center; gap: 14px;
+    min-height: 56px; padding: 0 10px 0 28px;
+    background: var(--encre); color: var(--papier);
+    border-radius: 28px; text-decoration: none; font-size: 16px; font-weight: 600;
+    transition: background-color .25s ease;
+  }
+  .bouton:hover { background: var(--rouge); }
+  .bouton:focus-visible { outline: 2px solid var(--rouge); outline-offset: 4px; }
+  .bouton svg { width: 38px; height: 38px; flex: none; }
+  .bouton .roue-bouton { transition: transform .3s cubic-bezier(.3,.7,.2,1); }
+  .bouton:hover .roue-bouton, .bouton:focus-visible .roue-bouton { transform: translateX(4px); }
+
+  /* visuel */
+  .scene {
+    align-self: end;
+    position: relative;
+    margin: 0 calc(-1 * clamp(20px, 4vw, 64px)) 0 0;
+    padding-bottom: clamp(24px, 4vh, 48px);
+  }
+  .scene svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .scene { z-index: 1; }
+  .legende {
+    position: absolute; right: clamp(20px, 4vw, 64px); bottom: clamp(10px, 2vh, 20px);
+    margin: 0; font-size: 12px; color: var(--encre-douce); letter-spacing: .04em;
+  }
+  .plan text { font-family: Consolas, "SF Mono", Menlo, monospace; fill: var(--mine); font-size: 13px; }
+
+  /* ombres de platanes : un cadre limité au coin où elles tombent, rien à recomposer ailleurs */
+  .feuillage {
+    position: absolute; top: 0; right: 0; z-index: 2; pointer-events: none;
+    width: min(52vw, 760px); aspect-ratio: 700 / 800;
+    opacity: 0; visibility: hidden;
+  }
+  .feuillage svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  /* chaque couche est floutée une fois, puis seulement déplacée (aucun flou recalculé à chaque image) */
+  .feuillage .couche { position: absolute; inset: 0; }
+  /* le fond du feuillage reste immobile (peint une fois) ; seules les feuilles proches bougent, sur leur propre couche */
+  /* les feuilles proches : seulement le coin haut droit, pour une petite couche */
+  .feuillage .couche-pres { inset: 0 0 auto auto; width: calc(100% * 380 / 700); height: 50%; will-change: transform; transform-origin: 100% 0; }
+
+  /* téléphone : le titre, puis le vélo, puis le texte et le bouton ; tout tient dans le premier écran */
+  @media (max-width: 860px) {
+    /* deux rangées souples (2 et 8) prennent la place libre : le bloc reste centré sous l'en-tête sur une tablette haute */
+    .accueil { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) repeat(5, auto) minmax(0, 1fr); }
+    h1 { font-size: clamp(44px, 9vw, 80px); }
+    .menu a:not(:last-child) { display: none; }
+    .texte { display: contents; }
+    .surtitre, h1, .accroche, .bouton { position: relative; z-index: 3; }
+    .surtitre { grid-row: 3; margin-top: 28px; }
+    h1 { grid-row: 4; margin-bottom: 4px; }
+    .scene { grid-row: 5; margin: 0 -20px; padding-bottom: 14px; }
+    .accroche { grid-row: 6; }
+    .bouton { grid-row: 7; justify-self: start; margin-bottom: 32px; }
+    .legende { display: none; }
+    .feuillage { width: 78vw; }
+    .feuillage svg { opacity: .6; }
+  }
+  @media (max-width: 480px) {
+    .marque span { display: none; }
+    .surtitre { margin-bottom: 14px; font-size: 12px; }
+    .accroche { font-size: 16px; margin-bottom: 24px; }
+  }
+</style>
+</head>
+<body>
+<section class="accueil" id="accueil">
+  <header class="entete">
+    <a class="marque" href="#accueil"><b>Merle</b><span>cycles faits main</span></a>
+    <nav class="menu" aria-label="Navigation principale">
+      <a href="#modeles">Modèles</a>
+      <a href="#atelier">L'atelier</a>
+      <a href="#mesure">Sur mesure</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </header>
+
+  <div class="texte">
+    <p class="surtitre">Atelier de cycles à Lyon, depuis 2011</p>
+    <h1>
+      <span class="ligne"><span>Brasés <em>à la main</em>,</span></span>
+      <span class="ligne"><span>roulés en ville.</span></span>
+    </h1>
+    <p class="accroche">Chaque cadre en acier est mesuré à votre taille, brasé dans notre atelier de la Croix-Rousse
+      puis monté rayon par rayon. Dix semaines plus tard, vous partez avec.</p>
+    <a class="bouton" href="#modeles">Découvrir les modèles
+      <svg viewBox="0 0 38 38" aria-hidden="true">
+        <circle cx="19" cy="19" r="19" fill="#eee6d8"/>
+        <g class="roue-bouton" fill="none" stroke="#1f1a16" stroke-width="1.6" stroke-linecap="round">
+          <path d="M12 19h13M20 14l5 5-5 5"/>
+        </g>
+      </svg>
+    </a>
+  </div>
+
+  <figure class="scene" aria-hidden="true" style="margin-top:0">
+    <svg id="dessin" viewBox="-40 0 940 600">
+      <defs>
+        <radialGradient id="g-braise">
+          <stop offset="0" stop-color="#fff8dc"/>
+          <stop offset=".25" stop-color="#ffd27a"/>
+          <stop offset=".55" stop-color="#ff8a2a" stop-opacity=".55"/>
+          <stop offset="1" stop-color="#ff5a00" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="g-ombre">
+          <stop offset="0" stop-color="#3a2a1c" stop-opacity=".28"/>
+          <stop offset="1" stop-color="#3a2a1c" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="g-voile" x1="0" x2="1">
+          <stop offset="0" stop-color="#fff"/>
+          <stop offset=".72" stop-color="#fff"/>
+          <stop offset=".8" stop-color="#000"/>
+          <stop offset="1" stop-color="#000"/>
+        </linearGradient>
+        <linearGradient id="g-sol" gradientUnits="userSpaceOnUse" x1="-160" x2="80">
+          <stop offset="0" stop-color="#1f1a16" stop-opacity="0"/>
+          <stop offset="1" stop-color="#1f1a16"/>
+        </linearGradient>
+        <mask id="m-peinture" maskUnits="userSpaceOnUse" x="-100" y="0" width="1100" height="610">
+          <rect id="voile" x="-1000" y="0" width="1300" height="610" fill="url(#g-voile)"/>
+        </mask>
+      </defs>
+
+      <!-- la rue -->
+      <line class="sol" x1="-160" y1="548" x2="3000" y2="548" stroke="url(#g-sol)" stroke-width="1.5"/>
+
+      <!-- le plan, tracé à l'endroit où le vélo est construit -->
+      <g class="plan" id="plan" transform="translate(-110 0)" fill="none" stroke="#8b8276" stroke-width="1">
+        <circle class="trait" cx="215" cy="400" r="148" stroke-dasharray="3 5"/>
+        <circle class="trait" cx="672" cy="400" r="148" stroke-dasharray="3 5"/>
+        <path class="trait" d="M195 400h40M215 380v40M652 400h40M672 380v40"/>
+        <path class="trait" d="M40 400H850" stroke-dasharray="2 6"/>
+        <path class="trait" d="M425.6 449.2 346.4 176.8"/> <!-- axe du tube de selle -->
+        <path class="trait" d="M332 196H630"/>             <!-- tube horizontal -->
+        <path class="trait" d="M631.5 280.2 602.5 179.8"/> <!-- axe de direction -->
+        <path class="trait" d="M640 250 405 442"/>         <!-- tube diagonal -->
+        <path class="trait" d="M440 433 195 397"/>         <!-- base -->
+        <path class="trait" d="M368 196 205 413"/>         <!-- hauban -->
+        <path class="trait" d="M420 430m-34 0a34 34 0 0 1 24-32.5"/> <!-- angle de selle -->
+        <path class="trait" d="M215 572v24M672 572v24M215 586H672"/>
+        <text class="cote" x="443" y="580" text-anchor="middle" stroke="none">1 060</text>
+        <text class="cote" x="372" y="388" stroke="none">73°</text>
+        <text class="cote" x="300" y="296" stroke="none" transform="rotate(-74 300 296)">540</text>
+      </g>
+
+      <!-- le vélo -->
+      <g id="velo" transform="translate(-110 0)">
+        <ellipse class="ombre" cx="443" cy="551" rx="330" ry="11" fill="url(#g-ombre)"/>
+
+        <!-- garde-boue -->
+        <g class="piece garde-boue" fill="none" stroke-linecap="round">
+          <path d="M60.5 358.6A160 160 0 0 1 365.4 345.3" stroke="#8f9294" stroke-width="7"/>
+          <path d="M60.5 358.6A160 160 0 0 1 365.4 345.3" stroke="#d6d8d6" stroke-width="4"/>
+          <path d="M521.6 345.3A160 160 0 0 1 829.6 372.2" stroke="#8f9294" stroke-width="7"/>
+          <path d="M521.6 345.3A160 160 0 0 1 829.6 372.2" stroke="#d6d8d6" stroke-width="4"/>
+        </g>
+
+        <!-- roues : remplies par le script (rayons) -->
+        <g class="roue" id="roue-ar" transform="translate(215 400)"><g class="tourne"></g></g>
+        <g class="roue" id="roue-av" transform="translate(672 400)"><g class="tourne"></g></g>
+
+        <!-- manivelle côté opposé, derrière le cadre -->
+        <g class="piece transmission-arriere" stroke-linecap="round">
+          <path d="M420 430 384 368" stroke="#6d6f70" stroke-width="9"/>
+          <rect x="370" y="362" width="28" height="9" rx="2" fill="#3a3633"/>
+        </g>
+
+        <!-- cadre : acier nu, puis peinture, puis raccords -->
+        <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <g class="acier" stroke="#959ba0">
+            <path class="tube" d="M420 430 352 196" stroke-width="13" data-fin="selle"/>
+            <path class="tube" d="M352 196 608 198" stroke-width="12" data-fin="tete-haut"/>
+            <path class="tube" d="M608 198 626 262" stroke-width="15" data-fin="tete-bas"/>
+            <path class="tube" d="M626 262 420 430" stroke-width="15" data-fin="pedalier"/>
+            <path class="tube" d="M420 430 215 400" stroke-width="9"  data-fin="patte"/>
+            <path class="tube" d="M357 212 215 400" stroke-width="8"  data-fin="patte"/>
+            <path class="tube" d="M628 268 656 360Q663 388 672 400" stroke-width="9" data-fin="patte-av"/>
+          </g>
+          <g class="peinture" mask="url(#m-peinture)">
+            <g stroke="#7b2219">
+              <path d="M420 430 352 196" stroke-width="13"/>
+              <path d="M352 196 608 198" stroke-width="12"/>
+              <path d="M608 198 626 262" stroke-width="15"/>
+              <path d="M626 262 420 430" stroke-width="15"/>
+              <path d="M420 430 215 400" stroke-width="9"/>
+              <path d="M357 212 215 400" stroke-width="8"/>
+              <path d="M628 268 656 360Q663 388 672 400" stroke-width="9"/>
+            </g>
+            <g stroke="#c4614f" stroke-width="2.2" opacity=".7">
+              <path d="M417 424 351 199"/>
+              <path d="M356 192.5 604 194.5"/>
+              <path d="M621 256 427 414"/>
+              <path d="M412 426 225 399"/>
+              <path d="M626 267 652 352"/>
+            </g>
+          </g>
+        </g>
+        <g class="raccords">
+          <g class="raccord" data-nom="selle"><circle cx="352" cy="198" r="11"/></g>
+          <g class="raccord" data-nom="tete-haut"><path d="M598 192h18l3 12h-20z"/></g>
+          <g class="raccord" data-nom="tete-bas"><path d="M616 252h16l4 16h-18z"/></g>
+          <g class="raccord" data-nom="pedalier"><circle cx="420" cy="430" r="17"/></g>
+          <g class="raccord" data-nom="patte"><circle cx="215" cy="400" r="9"/></g>
+          <g class="raccord" data-nom="patte-av"><circle cx="672" cy="400" r="8"/></g>
+        </g>
+
+        <!-- transmission côté visible -->
+        <g class="piece transmission" fill="none" stroke-linecap="round">
+          <path d="M215 386 420 390M215 414 420 470" stroke="#3a3633" stroke-width="3.4" stroke-dasharray="3 1.6"/>
+          <circle cx="215" cy="400" r="14" stroke="#7d8183" stroke-width="3"/>
+          <circle cx="420" cy="430" r="40" stroke="#b9bcbd" stroke-width="4"/>
+          <circle cx="420" cy="430" r="34" stroke="#8b8f91" stroke-width="1.5"/>
+          <path d="M420 430 456 492" stroke="#c9cccc" stroke-width="9"/>
+          <rect x="440" y="487" width="32" height="10" rx="2" fill="#2b2826" stroke="none"/>
+          <circle cx="420" cy="430" r="6" fill="#d7d9d9" stroke="none"/>
+        </g>
+
+        <!-- selle, guidon -->
+        <g class="piece selle" stroke-linecap="round">
+          <path d="M352 196 338 148" stroke="#c4c7c8" stroke-width="7" fill="none"/>
+          <path d="M318 154l40 0" stroke="#55504b" stroke-width="3"/>
+          <path d="M292 138C294 128 318 126 340 130L374 134C380 135 380 141 374 142L340 147C320 151 298 151 292 145Z" fill="#7a4a2a"/>
+          <path d="M296 140C310 134 330 133 350 136" stroke="#9c6a43" stroke-width="2" fill="none"/>
+          <circle cx="300" cy="143" r="1.6" fill="#d9b277"/><circle cx="308" cy="145" r="1.6" fill="#d9b277"/>
+        </g>
+        <g class="piece guidon" fill="none" stroke-linecap="round">
+          <path d="M608 198 598 166" stroke="#c4c7c8" stroke-width="9"/>
+          <path d="M598 166C590 156 564 152 540 160" stroke="#c4c7c8" stroke-width="6"/>
+          <path d="M540 160 512 170" stroke="#9a6b43" stroke-width="10"/>
+          <circle cx="572" cy="152" r="6.5" fill="#c79b52" stroke="none"/>
+        </g>
+
+        <!-- étiquette nouée au tube horizontal -->
+        <g class="etiquette" id="etiquette" transform="translate(478 201)">
+          <g class="balance">
+            <path d="M0 0V22" stroke="#6b5a45" stroke-width="1.2" fill="none"/>
+            <g transform="translate(-23 22)">
+              <path d="M8 0H38L46 8V72H0V8Z" fill="#d8b98a"/>
+              <circle cx="23" cy="8" r="3" fill="#eee6d8"/>
+              <text x="23" y="34" text-anchor="middle" font-family="Iowan Old Style, Palatino Linotype, Georgia, serif" font-size="15" fill="#3d2c1c">0412</text>
+              <path d="M8 42H38" stroke="#a88a60" stroke-width="1"/>
+              <text x="23" y="56" text-anchor="middle" font-family="Segoe UI, system-ui, sans-serif" font-size="8.5" fill="#5b4630">brasé par</text>
+              <text x="23" y="66" text-anchor="middle" font-family="Segoe UI, system-ui, sans-serif" font-size="8.5" fill="#5b4630">Lou</text>
+            </g>
+          </g>
+        </g>
+
+        <!-- lueurs de brasure -->
+        <g class="braises" style="mix-blend-mode:screen"></g>
+      </g>
+    </svg>
+    <figcaption class="legende">Modèle Quai, cadre de 54, rouge sang-de-bœuf</figcaption>
+  </figure>
+  <div class="feuillage" aria-hidden="true">
+    <div class="couche" id="couche-loin"><svg viewBox="780 -60 700 800">
+      <filter id="flou-loin" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="9"/></filter>
+      <g id="branche-loin" filter="url(#flou-loin)" fill="#6b5236" opacity=".10"></g>
+    </svg></div>
+    <div class="couche couche-pres" id="couche-pres"><svg viewBox="1100 -60 380 400">
+      <filter id="flou-pres" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="4.5"/></filter>
+      <g id="branche-pres" filter="url(#flou-pres)" fill="#5e4428" opacity=".12"></g>
+    </svg></div>
+  </div>
+</section>
+
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.13.0/dist/gsap.min.js"></script>
+<script>
+(() => {
+  const NS = "http://www.w3.org/2000/svg";
+  const R = 148;                    // rayon extérieur du pneu
+  const compact = matchMedia("(max-width: 860px)");
+  const DEPART = compact.matches ? -60 : -110; // le vélo est construit un peu à gauche de sa place
+  const reduit = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const svg = document.getElementById("dessin");
+  // au téléphone, cadrage serré (le haut du dessin est vide) et assez large pour le vélo en construction
+  const cadrer = () => svg.setAttribute("viewBox", compact.matches ? "-20 100 870 500" : "-40 0 940 600");
+  cadrer();
+  compact.addEventListener("change", cadrer);
+  document.getElementById("plan").setAttribute("transform", `translate(${DEPART} 0)`);
+  const el = (nom, attrs, parent) => {
+    const n = document.createElementNS(NS, nom);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(n);
+    return n;
+  };
+
+  // --- roues : pneu, flanc, jante, 32 rayons croisés, moyeu, valve
+  for (const roue of svg.querySelectorAll(".roue")) {
+    const g = roue.querySelector(".tourne");
+    const rayons = el("g", { class: "rayons", stroke: "#8f9599", "stroke-width": 1.1 }, g);
+    for (let i = 0; i < 32; i++) {
+      const a = (i / 32) * Math.PI * 2;
+      const b = a + (i % 2 ? 3 : -3) * (Math.PI * 2 / 32);
+      el("line", { x1: 13 * Math.cos(a), y1: 13 * Math.sin(a), x2: 131 * Math.cos(b), y2: 131 * Math.sin(b), class: "rayon" }, rayons);
+    }
+    el("circle", { r: 134, fill: "none", stroke: "#c4c7c8", "stroke-width": 5, class: "jante" }, g);
+    el("circle", { r: 139.5, fill: "none", stroke: "#c9a777", "stroke-width": 5, class: "flanc" }, g);
+    el("circle", { r: 145, fill: "none", stroke: "#1e1c1a", "stroke-width": 7, class: "pneu" }, g);
+    el("rect", { x: -3, y: -131, width: 6, height: 9, rx: 1.5, fill: "#3a3633", class: "valve" }, g);
+    el("circle", { r: 15, fill: "none", stroke: "#a9adae", "stroke-width": 2, class: "moyeu" }, g);
+    el("circle", { r: 9, fill: "#d2d4d4", class: "moyeu" }, g);
+    el("circle", { r: 4, fill: "#8b8f91", class: "moyeu" }, g);
+  }
+
+  // --- ombres de platanes : des feuilles le long de quelques branches, depuis le coin haut droit (tirage fixe)
+  let graine = 7;
+  const hasard = () => ((graine = (graine * 16807) % 2147483647) / 2147483647);
+  const branches = [[1440, 0, 900, 260], [1440, 120, 1080, 470], [1300, 0, 1120, 330], [1440, 330, 1150, 640]];
+  for (const [id, n, zone] of [["branche-loin", 70, [780, -60, 1480, 740]], ["branche-pres", 34, [1120, -40, 1480, 320]]]) {
+    const g = document.getElementById(id);
+    for (let i = 0, essais = 0; i < n && essais < 2000; essais++) {
+      const [x1, y1, x2, y2] = branches[(i + essais) % branches.length];
+      const k = Math.pow(hasard(), 0.8);
+      const cx = x1 + (x2 - x1) * k + (hasard() - 0.5) * 90;
+      const cy = y1 + (y2 - y1) * k + (hasard() - 0.5) * 70;
+      if (cx < zone[0] || cy < zone[1] || cx > zone[2] || cy > zone[3]) continue;
+      i++;
+      const taille = 1 - k * 0.45;
+      el("ellipse", { cx, cy, rx: (18 + hasard() * 22) * taille, ry: (9 + hasard() * 10) * taille,
+        transform: `rotate(${(hasard() * 180).toFixed(0)} ${cx.toFixed(0)} ${cy.toFixed(0)})` }, g);
+    }
+  }
+  // le vent : une seule fonction, qui fait bouger les branches et l'étiquette ensemble
+  const vent = (t) => Math.sin(t * 0.55) * 0.6 + Math.sin(t * 1.37 + 1) * 0.3 + Math.sin(t * 2.9) * 0.1;
+  const couchePres = document.getElementById("couche-pres");
+
+  // --- raccords : laiton, avec une lueur de brasure par raccord
+  const braises = svg.querySelector(".braises");
+  const raccords = {};
+  for (const r of svg.querySelectorAll(".raccord")) {
+    r.setAttribute("fill", "#b5884a");
+    const b = r.getBBox();
+    const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+    const lueur = el("circle", { cx, cy, r: 46, fill: "url(#g-braise)", opacity: 0 }, braises);
+    raccords[r.dataset.nom] = { r, lueur, cx, cy };
+  }
+
+  // --- longueurs pour tracer les traits
+  const tracer = (n) => { const L = n.getTotalLength(); n.style.strokeDasharray = n.getAttribute("stroke-dasharray") ? n.getAttribute("stroke-dasharray") : L; n.dataset.L = L; return L; };
+
+  // --- état unique : la position du vélo ; tout le reste (roues, étiquette) en découle
+  const etat = { x: DEPART, rue: 0 }; // rue : 0 dans l'atelier, 1 dehors (le vent souffle)
+  const velo = document.getElementById("velo");
+  const tournes = svg.querySelectorAll(".tourne");
+  const balance = svg.querySelector(".balance");
+  let pendule = { a: 0, v: 0 }, xPrec = DEPART, vPrec = 0, temps = 0, dernierX = "", dernierA = "";
+  function dessiner(dt) {
+    const xs = etat.x.toFixed(2);
+    if (xs !== dernierX) {
+      dernierX = xs;
+      velo.setAttribute("transform", `translate(${xs} 0)`);
+      const angle = (etat.x / R) * 180 / Math.PI;
+      for (const t of tournes) t.setAttribute("transform", `rotate(${angle.toFixed(2)})`);
+    }
+    // l'étiquette est un pendule poussé par l'accélération du vélo
+    if (dt > 0) {
+      const v = (etat.x - xPrec) / dt;
+      const acc = Math.max(-3000, Math.min(3000, (v - vPrec) / dt)); // un saut (onglet en arrière-plan) ne fait pas tourner l'étiquette
+      xPrec = etat.x; vPrec = v;
+      temps += dt;
+      const L = 60, g = 9000; // unités du dessin
+      const brise = 7 * vent(temps - 0.25) * etat.rue;
+      const w1 = vent(temps), w2 = vent(temps - 0.35);
+      couchePres.style.transform = `translate3d(${(w1 * 9).toFixed(2)}px, ${(w1 * 3).toFixed(2)}px, 0) rotate(${(w2 * 2.4).toFixed(3)}deg)`;
+      pendule.v += (-(g / L) * Math.sin(pendule.a) - 2.2 * pendule.v - (acc / L) * Math.cos(pendule.a) + brise) * dt;
+      pendule.a += pendule.v * dt;
+      const as = (pendule.a * 180 / Math.PI).toFixed(2);
+      if (as !== dernierA) { dernierA = as; balance.setAttribute("transform", `rotate(${as})`); }
+    }
+  }
+  gsap.ticker.add((t, dms) => dessiner(Math.min(dms, 50) / 1000));
+
+  // --- la souris : le vélo roule un peu vers elle, avec du poids (ressort amorti)
+  const ressort = { x: 0, v: 0, cible: 0 };
+  let introFinie = false;
+  if (!reduit && matchMedia("(hover: hover) and (pointer: fine)").matches) {
+    document.getElementById("accueil").addEventListener("pointermove", (e) => {
+      ressort.cible = (e.clientX / innerWidth - 0.5) * 40;
+    });
+    document.getElementById("accueil").addEventListener("pointerleave", () => { ressort.cible = 0; });
+    gsap.ticker.add((t, dms) => {
+      if (!introFinie) return;
+      const dt = Math.min(dms, 50) / 1000;
+      const k = 18, amorti = 2 * Math.sqrt(k);
+      ressort.v += (k * (ressort.cible - ressort.x) - amorti * ressort.v) * dt;
+      ressort.x += ressort.v * dt;
+      etat.x = ressort.x;
+    });
+  }
+
+  // --- l'entrée
+  const tl = gsap.timeline({ defaults: { ease: "power2.out" }, onComplete: () => { introFinie = true; } });
+
+  // texte : lisible tout de suite
+  tl.from(".entete", { opacity: 0, duration: .6 }, 0)
+    .from(".ligne > span", { yPercent: 105, duration: .9, stagger: .09, ease: "power3.out" }, 0.05)
+    .from(".surtitre, .accroche, .bouton", { opacity: 0, y: 14, duration: .7, stagger: .08 }, 0.25)
+    .from(".legende", { opacity: 0, duration: .6 }, 3.6);
+
+  // 1. le plan
+  const traits = svg.querySelectorAll(".plan .trait");
+  traits.forEach((t) => {
+    const L = t.getTotalLength();
+    const tirets = t.getAttribute("stroke-dasharray");
+    if (tirets) { gsap.set(t, { opacity: 0 }); tl.to(t, { opacity: 1, duration: .5 }, 0.15 + Math.random() * 0.4); }
+    else { gsap.set(t, { strokeDasharray: L, strokeDashoffset: L }); tl.to(t, { strokeDashoffset: 0, duration: .6, ease: "power1.inOut" }, 0.15 + [...traits].indexOf(t) * 0.045); }
+  });
+  tl.from(".plan .cote", { opacity: 0, duration: .4, stagger: .1 }, 0.7);
+
+  // 2. les tubes s'emboîtent, chaque raccord s'allume quand le tube y arrive
+  const tubes = svg.querySelectorAll(".acier .tube");
+  const debutTubes = 0.6;
+  const ordre = [0, 0.12, 0.3, 0.36, 0.55, 0.6, 0.66];
+  tubes.forEach((t, i) => {
+    const L = t.getTotalLength();
+    gsap.set(t, { strokeDasharray: `${L} ${L + 20}`, strokeDashoffset: L + 1 });
+    const d = debutTubes + ordre[i];
+    tl.to(t, { strokeDashoffset: 0, duration: .28, ease: "power2.in" }, d);
+  });
+  const allumer = (nom, a) => {
+    const { r, lueur } = raccords[nom];
+    gsap.set(r, { opacity: 0 });
+    tl.fromTo(lueur, { opacity: 0, attr: { r: 22 } }, { opacity: 1, attr: { r: 40 }, duration: .1, ease: "power1.out", immediateRender: false }, a)
+      .to(lueur, { opacity: 0, attr: { r: 30 }, duration: .45, ease: "power2.in" }, a + .1)
+      .fromTo(r, { opacity: 0, fill: "#ffd98a" }, { opacity: 1, duration: .08, immediateRender: false }, a + .04)
+      .to(r, { fill: "#b5884a", duration: .9, ease: "power1.out" }, a + .12);
+  };
+  allumer("selle", debutTubes + .26);
+  allumer("tete-haut", debutTubes + .4);
+  allumer("tete-bas", debutTubes + .58);
+  allumer("pedalier", debutTubes + .64);
+  allumer("patte", debutTubes + .86);
+  allumer("patte-av", debutTubes + .94);
+
+  // 3. la peinture passe sur le cadre
+  tl.fromTo("#voile", { attr: { x: -1000 } }, { attr: { x: 0 }, duration: .8, ease: "power1.inOut", immediateRender: false }, 1.6);
+
+  // 4. les roues se montent : pneu tracé, rayons qui se lacent
+  svg.querySelectorAll(".roue").forEach((roue, i) => {
+    const d = 1.72 + i * 0.12;
+    const cercles = roue.querySelectorAll(".pneu, .flanc, .jante");
+    cercles.forEach((c) => {
+      const L = 2 * Math.PI * c.r.baseVal.value;
+      gsap.set(c, { strokeDasharray: L, strokeDashoffset: L });
+      tl.to(c, { strokeDashoffset: 0, duration: .6, ease: "power2.inOut" }, d);
+    });
+    tl.from(roue.querySelectorAll(".rayon"), { opacity: 0, duration: .15, stagger: .012 }, d + .1)
+      .from(roue.querySelectorAll(".moyeu, .valve"), { opacity: 0, duration: .3 }, d);
+  });
+
+  // 5. les pièces
+  tl.from(".garde-boue", { opacity: 0, y: -16, duration: .45, ease: "power3.out" }, 2.12)
+    .from(".transmission, .transmission-arriere", { opacity: 0, duration: .4 }, 2.2)
+    .from(".selle", { opacity: 0, y: -24, duration: .5, ease: "power3.out" }, 2.25)
+    .from(".guidon", { opacity: 0, y: -18, duration: .5, ease: "power3.out" }, 2.32)
+    .from(".etiquette", { opacity: 0, duration: .15, onStart: () => { pendule.a = -1.1; pendule.v = 0; } }, 2.45);
+
+  // 6. le moment fort : la poussée. Le plan s'efface, le vélo roule jusqu'à sa place
+  tl.to(etat, { x: DEPART - 12, duration: .32, ease: "power2.inOut" }, 2.72)
+    .to(etat, { x: 0, duration: 1.4, ease: "power3.out" }, 3.04)
+    .to(".plan", { opacity: 0, duration: .45, ease: "power1.in" }, 3.04)
+    .to(".feuillage", { autoAlpha: 1, duration: 1.6, ease: "power1.inOut" }, 3.1)
+    .to(etat, { rue: 1, duration: 2, ease: "none" }, 3.1)
+    .from(".ombre", { opacity: 0, duration: .6 }, 2.4);
+
+  // « réduire les animations » : respecté. Pas de construction ni de poussée, l'image finale tout de suite ;
+  // restent le feuillage et l'étiquette qui bougent à peine. La souris ne fait plus rouler le vélo.
+  if (reduit) {
+    tl.progress(1);
+    xPrec = etat.x; vPrec = 0; pendule = { a: 0, v: 0 };
+  }
+})();
+</script>
+</body>
+</html>

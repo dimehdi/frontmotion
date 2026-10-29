@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Page de contrôle propre</title>
+<!-- Page d'essai des scripts : animations en transform, mesures faites une fois, pause hors écran. Elle doit tout passer. -->
+<style>
+  body { margin: 0; font: 18px system-ui; background: #101317; color: #e8edf2; }
+  section { min-height: 100vh; display: grid; place-items: center; }
+  .bloc { width: min(60vw, 320px); aspect-ratio: 1; border-radius: 16px; background: #6f86e8; will-change: transform; }
+</style>
+<section id="un"><div class="bloc" data-tourne></div></section>
+<section id="deux"><div class="bloc" data-suit></div></section>
+<section id="trois"><p>Fin de la page.</p></section>
+<script>
+  // une rotation continue, en pause hors écran
+  const tourne = document.querySelector("[data-tourne]");
+  let actif = true, angle = 0;
+  new IntersectionObserver(([e]) => (actif = e.isIntersecting)).observe(tourne);
+  // un bloc qui suit le défilement : sa position est mesurée une fois, puis dérivée du défilement
+  const suit = document.querySelector("[data-suit]");
+  let debut = 0;
+  const mesurer = () => (debut = suit.parentElement.offsetTop);
+  mesurer();
+  new ResizeObserver(mesurer).observe(document.body);
+  let y = window.scrollY;
+  addEventListener("scroll", () => (y = window.scrollY), { passive: true });
+  const boucle = () => {
+    if (actif) tourne.style.transform = `rotate(${(angle += 1)}deg)`;
+    suit.style.transform = `translateY(${(y - debut) * 0.2}px)`;
+    requestAnimationFrame(boucle);
+  };
+  requestAnimationFrame(boucle);
+</script>
+</html>
