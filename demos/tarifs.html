@@ -7,7 +7,7 @@
 <meta name="description" content="Les tarifs de Calé : Solo, Équipe et Entreprise, en mensuel ou en annuel avec 20 % d'économie.">
 <!--
   Ce que l'animation raconte : un agenda qui se remplit. Chaque offre montre la journée de ses agendas ; le choix
-  annuel fait rouler les prix et rend visibles les 2,4 mois offerts sur douze.
+  annuel change les prix d'un bloc et rend visibles les 2,4 mois offerts sur douze.
   Moment fort : l'offre Équipe arrive, sa journée se remplit en cascade, puis l'étiquette « Le plus choisi » se pose.
   À la fin : trois offres lisibles, une ligne « maintenant » qui avance lentement dans les agendas et, de temps en
   temps, un rendez-vous qui se prend.
@@ -178,10 +178,9 @@
   }
   .vedette .ancien { color: #9fb5ac; }
   .ancien i { position: absolute; left: -2px; right: -2px; top: 52%; height: 1.5px; background: currentColor; transform: scaleX(0); transform-origin: 0 50%; }
-  .chiffres { display: flex; font-size: 3.4rem; font-weight: 700; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
-  .ch { display: block; height: 1.1em; overflow: hidden; }
-  .ch > span { display: flex; flex-direction: column; }
-  .ch > span > span { display: block; height: 1.1em; line-height: 1.1em; }
+  .chiffres { position: relative; height: 1.1em; overflow: hidden; font-size: 3.4rem; font-weight: 700; letter-spacing: -.04em; line-height: 1.1em; font-variant-numeric: tabular-nums; }
+  .chiffres .n { display: block; }
+  .chiffres .a { position: absolute; left: 0; top: 0; opacity: 0; }
   .unite { display: flex; flex-direction: column; padding-bottom: 9px; font-size: .86rem; line-height: 1.25; color: var(--gris); }
   .unite b { color: var(--encre); font-size: 1.05rem; }
   .vedette .unite { color: #b8c7c0; }
@@ -399,12 +398,9 @@
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
   /* ---------- Construction : chiffres, mois, agendas ---------- */
-  const fmt = (n) => String(n).padStart(2, "0").split("").map(Number);
   $$(".chiffres").forEach((el) => {
     el.setAttribute("aria-hidden", "true");
-    el.innerHTML = fmt(el.dataset.m).map(() =>
-      `<span class="ch"><span>${[0,1,2,3,4,5,6,7,8,9].map((d) => `<span>${d}</span>`).join("")}</span></span>`
-    ).join("");
+    el.innerHTML = `<span class="n m">${el.dataset.m}</span><span class="n a">${el.dataset.a}</span>`;
   });
   const moisEl = $(".mois");
   moisEl.insertAdjacentHTML("afterbegin", Array.from({ length: 12 }, () => "<i><b></b></i>").join(""));
@@ -457,9 +453,15 @@
   const legM = $(".legende .m"), legA = $(".legende .a");
   let annuel = false;
 
-  function permuter(sortant, entrant, sens, delai = 0) {
-    gsap.to(sortant, { yPercent: -100 * sens * A, autoAlpha: 0, duration: .25, delay: delai, ease: "power2.in", overwrite: true });
-    gsap.fromTo(entrant, { yPercent: 100 * sens * A }, { yPercent: 0, autoAlpha: 1, duration: .4, delay: delai + .12, ease: "power3.out", overwrite: true });
+  // l'ancien texte sort entièrement avant que le nouveau entre : on ne lit jamais deux valeurs à la fois
+  function permuter(sortant, entrant, sens, delai = 0, instant = false) {
+    if (instant) { gsap.set(sortant, { autoAlpha: 0 }); gsap.set(entrant, { autoAlpha: 1, yPercent: 0 }); return; }
+    // changement d'avis en cours de route : chacun repart d'où il est, sans attendre
+    const enCours = gsap.getProperty(entrant, "opacity") > .02;
+    const presse = enCours || gsap.isTweening(sortant);
+    if (!enCours) gsap.set(entrant, { yPercent: 100 * sens * A });
+    gsap.to(sortant, { yPercent: -100 * sens * A, autoAlpha: 0, duration: .16, delay: presse ? 0 : delai, ease: "power2.in", overwrite: true });
+    gsap.to(entrant, { yPercent: 0, autoAlpha: 1, duration: .38, delay: enCours ? 0 : (presse ? 0 : delai) + .14, ease: "power3.out", overwrite: true });
   }
 
   function regler(versAnnuel, instant = false) {
@@ -470,20 +472,17 @@
     gsap.to(curseur, { xPercent: versAnnuel ? 100 : 0, duration: .5 * d, ease: "power3.inOut", overwrite: true });
     gsap.to(curseurInt, { xPercent: versAnnuel ? -50 : 0, duration: .5 * d, ease: "power3.inOut", overwrite: true });
 
-    // les prix roulent, de la carte mise en avant vers les deux autres
+    // chaque prix change d'un seul bloc, de la carte mise en avant vers les deux autres
     agendas.forEach((ag, i) => {
       const el = $(".chiffres", ag.carte);
-      const vise = fmt(versAnnuel ? el.dataset.a : el.dataset.m);
       const ecart = i === 1 ? 0 : .05;
-      $$(".ch > span", el).forEach((bande, k) => {
-        gsap.to(bande, { yPercent: -10 * vise[k], duration: .5 * d, delay: (.06 + ecart + k * .04) * d, ease: "power3.inOut", overwrite: true });
-      });
+      const nM = $(".n.m", el), nA = $(".n.a", el);
+      permuter(versAnnuel ? nM : nA, versAnnuel ? nA : nM, sens, .04 + ecart, instant);
       const ancien = $(".ancien", ag.carte), barre = $(".ancien i", ag.carte);
       gsap.to(ancien, { autoAlpha: versAnnuel ? 1 : 0, y: versAnnuel ? 0 : 4 * A, duration: .3 * d, delay: (versAnnuel ? .15 + ecart : 0) * d, overwrite: true });
       gsap.to(barre, { scaleX: versAnnuel ? 1 : 0, duration: .3 * d, delay: (versAnnuel ? .3 + ecart : 0) * d, ease: "power2.out", overwrite: true });
       const fM = $(".facture .m", ag.carte), fA = $(".facture .a", ag.carte);
-      if (instant) { gsap.set(versAnnuel ? fM : fA, { autoAlpha: 0 }); gsap.set(versAnnuel ? fA : fM, { autoAlpha: 1, yPercent: 0 }); }
-      else permuter(versAnnuel ? fM : fA, versAnnuel ? fA : fM, sens, .08 + ecart);
+      permuter(versAnnuel ? fM : fA, versAnnuel ? fA : fM, sens, .08 + ecart, instant);
       const sr = $("[data-texte]", ag.carte);
       if (!instant) sr.textContent = `${sr.dataset.texte} : ${versAnnuel ? el.dataset.a : el.dataset.m} € hors taxes par mois`;
     });
@@ -492,8 +491,7 @@
     const vise = paye.map((_, k) => (versAnnuel ? (k < 9 ? 1 : k === 9 ? .6 : 0) : 1));
     const ordre = versAnnuel ? [11, 10, 9] : [9, 10, 11];
     ordre.forEach((k, n) => gsap.to(paye[k], { scaleX: vise[k], duration: .35 * d, delay: (.1 + n * .07) * d, ease: "power2.inOut", overwrite: true }));
-    if (instant) { gsap.set(versAnnuel ? legM : legA, { autoAlpha: 0 }); gsap.set(versAnnuel ? legA : legM, { autoAlpha: 1 }); }
-    else permuter(versAnnuel ? legM : legA, versAnnuel ? legA : legM, sens, .1);
+    permuter(versAnnuel ? legM : legA, versAnnuel ? legA : legM, sens, .1, instant);
   }
 
   $$(".bascule input").forEach((inp) => inp.addEventListener("change", () => regler(inp.value === "an")));
@@ -509,6 +507,7 @@
   // les rendez-vous d'Équipe, rangés par heure : la journée se remplit du matin au soir
   const cascade = [...equipe.rdv].sort((a, b) => a.rang - b.rang || a.col - b.col).map((r) => r.el);
   const compte = { n: equipe.rdv.length };
+  equipe.nb.textContent = 0; // l'agenda est vide avant la cascade : le compteur aussi
   const tl = gsap.timeline({ defaults: { ease: "power3.out" }, onComplete: demarrerVie });
   gsap.set(".entre", { visibility: "visible" });
   tl.from(".surtitre", { autoAlpha: 0, y: 8 * A, duration: .4 }, 0)
@@ -520,12 +519,10 @@
     .from(equipe.carte, { autoAlpha: 0, duration: .15, ease: "none" }, .5)
     .from([solo.carte, entreprise.carte], { y: 40 * A, duration: .8 }, .62)
     .from([solo.carte, entreprise.carte], { autoAlpha: 0, duration: .3, ease: "none" }, .62)
-    // les prix roulent jusqu'à leur valeur pendant que les cartes se posent
-    .from($$(".chiffres .ch > span"), { yPercent: (i, el) => (A ? 0 : gsap.getProperty(el, "yPercent")), duration: .6, ease: "power3.out", stagger: { each: .03, from: "center" } }, .55)
     // la journée de l'équipe se remplit du matin au soir, le compteur suit
     .from(cascade, { autoAlpha: 0, y: -5 * A, duration: .3, stagger: .022, ease: "power2.out" }, .85)
     .from(compte, { n: 0, duration: .3 + .022 * (cascade.length - 1), ease: "none", onUpdate() { equipe.nb.textContent = Math.round(compte.n); } }, .85)
-    .from(".etiquette", { autoAlpha: 0, y: -10 * A, scale: A ? .9 : 1, duration: .5, ease: "back.out(2)" }, 1.4)
+    .from(".etiquette", { autoAlpha: 0, y: -10 * A, scale: A ? .9 : 1, duration: .5 }, 1.4)
     .from(".rassure", { autoAlpha: 0, duration: .5 }, 1.2);
 
   /* ---------- La vie après l'entrée ---------- */

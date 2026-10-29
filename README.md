@@ -61,11 +61,11 @@ mieux sur les interfaces et les pages à reprendre.
 
 <table>
   <tr>
-    <td width="50%"><img src="medias/demo-tarifs.webp" alt="Une page de tarifs : les prix roulent, l'agenda de l'offre Équipe se remplit, le passage à l'annuel barre l'ancien prix."></td>
+    <td width="50%"><img src="medias/demo-tarifs.webp" alt="Une page de tarifs : l'agenda de l'offre Équipe se remplit, le passage à l'annuel change les prix et barre l'ancien."></td>
     <td width="50%"><img src="medias/demo-architecture.webp" alt="La page d'un studio d'architecture : le titre se dessine en esquisse puis se remplit, les bâtiments se construisent depuis le sol."></td>
   </tr>
   <tr>
-    <td><b>Une page de tarifs</b><br>Les prix roulent, l'agenda de l'offre mise en avant se remplit et continue de vivre, l'annuel barre l'ancien prix.<br><a href="demos/tarifs.html"><code>tarifs.html</code></a></td>
+    <td><b>Une page de tarifs</b><br>L'agenda de l'offre mise en avant se remplit et continue de vivre, l'annuel barre l'ancien prix et montre les mois offerts.<br><a href="demos/tarifs.html"><code>tarifs.html</code></a></td>
     <td><b>Une page existante, reprise</b><br>Un studio d'architecture aux animations génériques : tout est maintenant tracé comme un plan, puis construit.<br><a href="demos/architecture.html"><code>architecture.html</code></a></td>
   </tr>
   <tr>
