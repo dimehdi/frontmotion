@@ -95,11 +95,11 @@ Clone-le là où ton agent cherche ses skills.
 
 ```bash
 # Claude Code
-git clone https://github.com/mehdibml/frontmotion ~/.claude/skills/frontmotion
+git clone https://github.com/dimehdi/frontmotion ~/.claude/skills/frontmotion
 # Codex
-git clone https://github.com/mehdibml/frontmotion ~/.codex/skills/frontmotion
+git clone https://github.com/dimehdi/frontmotion ~/.codex/skills/frontmotion
 # OpenCode
-git clone https://github.com/mehdibml/frontmotion ~/.config/opencode/skills/frontmotion
+git clone https://github.com/dimehdi/frontmotion ~/.config/opencode/skills/frontmotion
 ```
 
 Pour un seul projet, clone-le dans le dossier de skills du projet (`.claude/skills/`, `.opencode/skills/`…). Avec un
